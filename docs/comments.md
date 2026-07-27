@@ -93,7 +93,7 @@ count on stderr.
 Neither subcommand starts a server or a browser:
 
 ```bash
-dv comments list                      # everything, with anchors and status
+dv comments list                      # everything, with anchors and replies
 dv comments list --path 'internal/*'  # filter by glob or prefix
 dv comments export --format md        # markdown, default
 dv comments export --format json      # the raw document
