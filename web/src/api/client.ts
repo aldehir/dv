@@ -52,6 +52,12 @@ export interface ApiClientOptions {
   fetch?: typeof globalThis.fetch;
 }
 
+/** What a mutating request returns: its payload plus the fresh document etag. */
+export interface Mutation<T> {
+  readonly value: T;
+  readonly etag: string;
+}
+
 export interface ApiClient {
   readonly token: string;
   streamUrl(path: string): string;
@@ -59,10 +65,10 @@ export interface ApiClient {
   manifest(): Promise<Manifest>;
   file(id: string): Promise<FilePayload>;
   comments(): Promise<CommentsResponse>;
-  createComment(input: NewCommentRequest): Promise<Comment>;
-  updateComment(id: string, input: PatchCommentRequest, etag?: string): Promise<Comment>;
-  deleteComment(id: string, etag?: string): Promise<void>;
-  addReply(id: string, body: string): Promise<Reply>;
+  createComment(input: NewCommentRequest): Promise<Mutation<Comment>>;
+  updateComment(id: string, input: PatchCommentRequest, etag?: string): Promise<Mutation<Comment>>;
+  deleteComment(id: string, etag?: string): Promise<Mutation<void>>;
+  addReply(id: string, body: string): Promise<Mutation<Reply>>;
 }
 
 interface RequestOptions {
@@ -88,6 +94,12 @@ const errorBody = async (response: Response): Promise<string> => {
   return '';
 };
 
+const readETag = (response: Response): string => {
+  const raw = (response.headers.get('ETag') ?? '').trim();
+  const tag = raw.startsWith('W/') ? raw.slice(2).trim() : raw;
+  return tag.startsWith('"') && tag.endsWith('"') ? tag.slice(1, -1) : tag;
+};
+
 export const createClient = ({
   baseUrl = '',
   token = '',
@@ -95,7 +107,7 @@ export const createClient = ({
 }: ApiClientOptions = {}): ApiClient => {
   const send = fetchImpl ?? globalThis.fetch.bind(globalThis);
 
-  const request = async <T>(path: string, options: RequestOptions = {}): Promise<T> => {
+  const request = async <T>(path: string, options: RequestOptions = {}): Promise<Mutation<T>> => {
     const url = `${baseUrl}${path}`;
     const headers: Record<string, string> = { Accept: 'application/json' };
     if (token !== '') headers[TOKEN_HEADER] = token;
@@ -124,15 +136,18 @@ export const createClient = ({
       );
     }
 
-    if (options.empty) return undefined as T;
+    const etag = readETag(response);
+    if (options.empty) return { value: undefined as T, etag };
 
     try {
-      return (await response.json()) as T;
+      return { value: (await response.json()) as T, etag };
     } catch (cause) {
       const reason = cause instanceof Error ? cause.message : String(cause);
       throw new ApiError(`${path} returned invalid JSON`, response.status, url, reason);
     }
   };
+
+  const read = async <T>(path: string): Promise<T> => (await request<T>(path)).value;
 
   return {
     token,
@@ -142,10 +157,10 @@ export const createClient = ({
       const separator = url.includes('?') ? '&' : '?';
       return `${url}${separator}${TOKEN_QUERY_PARAM}=${encodeURIComponent(token)}`;
     },
-    session: () => request<Session>('/api/session'),
-    manifest: () => request<Manifest>('/api/manifest'),
-    file: (id) => request<FilePayload>(`/api/file/${encodeURIComponent(id)}`),
-    comments: () => request<CommentsResponse>('/api/comments'),
+    session: () => read<Session>('/api/session'),
+    manifest: () => read<Manifest>('/api/manifest'),
+    file: (id) => read<FilePayload>(`/api/file/${encodeURIComponent(id)}`),
+    comments: () => read<CommentsResponse>('/api/comments'),
     createComment: (input) =>
       request<Comment>('/api/comments', { method: 'POST', body: input }),
     updateComment: (id, input, etag) =>

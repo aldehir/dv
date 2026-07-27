@@ -86,7 +86,7 @@ const buildFile = (entry: FileEntry): FileNode => {
     ),
     pip,
     el('span', {
-      class: `dv-badge dv-badge--${entry.status}`,
+      class: `dv-tree__mark dv-tree__mark--${entry.status}`,
       textContent: STATUS_LETTERS[entry.status],
       title: entry.status,
     }),

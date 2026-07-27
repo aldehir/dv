@@ -11,6 +11,8 @@ export interface ToolbarProps {
   spec: Spec | null;
   totals: Totals | null;
   sidebarVisible: boolean;
+  panelVisible: boolean;
+  commentsEnabled: boolean;
 }
 
 export interface ToolbarDeps {
@@ -52,6 +54,8 @@ export const toolbarProps = (state: AppState): ToolbarProps => ({
   spec: state.session?.spec ?? null,
   totals: state.manifest?.totals ?? null,
   sidebarVisible: state.sidebarVisible,
+  panelVisible: state.panelVisible,
+  commentsEnabled: state.commentsEnabled,
 });
 
 export const createToolbar = ({ store, bus }: ToolbarDeps): Component<ToolbarProps> => {
@@ -70,6 +74,16 @@ export const createToolbar = ({ store, bus }: ToolbarDeps): Component<ToolbarPro
   const repo = el('span', { class: 'dv-toolbar__repo' });
   const rev = el('span', { class: 'dv-toolbar__rev' });
   const counts = el('div', { class: 'dv-counts' });
+  const commentsButton = el(
+    'button',
+    {
+      class: 'dv-icon-btn',
+      type: 'button',
+      ariaLabel: 'Toggle the comment inbox',
+      title: 'Toggle the comment inbox',
+    },
+    icon('comments'),
+  );
   const helpButton = el('button', {
     class: 'dv-icon-btn',
     type: 'button',
@@ -90,6 +104,7 @@ export const createToolbar = ({ store, bus }: ToolbarDeps): Component<ToolbarPro
     ),
     el('div', { class: 'dv-toolbar__spacer' }),
     counts,
+    commentsButton,
     helpButton,
   );
 
@@ -97,6 +112,8 @@ export const createToolbar = ({ store, bus }: ToolbarDeps): Component<ToolbarPro
     repo.textContent = basename(props.repoRoot);
     rev.textContent = specSummary(props.spec);
     sidebarButton.setAttribute('aria-pressed', String(props.sidebarVisible));
+    commentsButton.setAttribute('aria-pressed', String(props.panelVisible));
+    commentsButton.hidden = !props.commentsEnabled;
 
     const totals = props.totals;
     replaceChildren(
@@ -118,6 +135,7 @@ export const createToolbar = ({ store, bus }: ToolbarDeps): Component<ToolbarPro
 
   disposer.add(on(helpButton, 'click', () => bus.emit('help:toggle')));
   disposer.add(on(sidebarButton, 'click', () => bus.emit('sidebar:toggle')));
+  disposer.add(on(commentsButton, 'click', () => bus.emit('panel:toggle')));
   disposer.add(store.subscribe((state) => update(toolbarProps(state))));
 
   update(toolbarProps(store.get()));

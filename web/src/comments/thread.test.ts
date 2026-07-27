@@ -56,94 +56,90 @@ const setup = (threads: Thread[]) => {
   return { bus, comments, list };
 };
 
-describe('createThreadList', () => {
-  it('renders one card per thread with status and location', () => {
-    const { list } = setup([threadFor('f1', comment())]);
-    const card = list.el.querySelector('.dv-thread__card');
+const inputOf = (list: { el: HTMLElement }): HTMLTextAreaElement => {
+  const input = list.el.querySelector<HTMLTextAreaElement>('.dv-thread__input');
+  if (!input) throw new Error('card has no text box');
+  return input;
+};
 
-    expect(card?.getAttribute('data-status')).toBe('open');
-    expect(card?.querySelector('.dv-thread__author')?.textContent).toBe('alde');
-    expect(card?.querySelector('.dv-thread__where')?.textContent).toBe('new L4-L6');
-    expect(card?.querySelector('.dv-thread__status')?.textContent).toBe('open');
+const buttonFor = (list: { el: HTMLElement }, label: string): HTMLButtonElement | undefined =>
+  [...list.el.querySelectorAll<HTMLButtonElement>('.dv-thread__action')].find(
+    (button) => button.textContent === label,
+  );
+
+describe('createThreadList', () => {
+  it('renders one editable card per thread', () => {
+    const { list } = setup([threadFor('f1', comment()), threadFor('f1', comment({ id: 'c2' }))]);
+
+    expect(list.el.querySelectorAll('.dv-thread__card').length).toBe(2);
+    expect(list.el.querySelector('.dv-thread__card')?.id).toBe('dv-comment-c1');
+    expect(inputOf(list).value).toBe('looks wrong');
+    list.destroy();
+  });
+
+  it('offers only save and delete', () => {
+    const { list } = setup([threadFor('f1', comment())]);
+    const labels = [...list.el.querySelectorAll('.dv-thread__action')].map(
+      (button) => button.textContent,
+    );
+
+    expect(labels).toEqual(['save', 'delete']);
+    expect(list.el.querySelector('.dv-thread__author')).toBeNull();
+    expect(list.el.querySelector('.dv-thread__time')).toBeNull();
+    expect(list.el.querySelector('.dv-thread__status')).toBeNull();
+    expect(list.el.querySelector('.dv-thread__reply')).toBeNull();
     list.destroy();
   });
 
   it('never parses markup coming from a comment body', () => {
     const { list } = setup([threadFor('f1', comment({ body: HOSTILE }))]);
-    const body = list.el.querySelector('.dv-thread__body');
 
     expect(list.el.querySelector('img')).toBeNull();
     expect(list.el.querySelector('script')).toBeNull();
-    expect(body?.textContent).toContain('<img src=x onerror="alert(1)">');
-    expect(body?.textContent).toContain('<script>alert(2)</script>');
+    expect(inputOf(list).value).toBe(HOSTILE);
     list.destroy();
   });
 
-  it('keeps escaping once the markdown renderer has loaded', async () => {
-    const first = setup([threadFor('f1', comment({ body: HOSTILE }))]);
-    await vi.waitFor(() => {
-      expect(first.list.el.querySelector('strong')).not.toBeNull();
-    });
+  it('saves an edited body through the store', () => {
+    const { comments, list } = setup([threadFor('f1', comment())]);
+    inputOf(list).value = '  now correct  ';
+    buttonFor(list, 'save')?.click();
 
-    expect(first.list.el.querySelector('img')).toBeNull();
-    expect(first.list.el.querySelector('script')).toBeNull();
-    expect(first.list.el.textContent).toContain('<img src=x onerror="alert(1)">');
-    first.list.destroy();
+    expect(comments.update).toHaveBeenCalledWith('c1', { body: 'now correct' });
+    list.destroy();
   });
 
-  it('renders replies and a stale badge', () => {
-    const raw = comment({
-      resolvedAnchor: { stale: true, movedFrom: null },
-      replies: [
-        {
-          id: 'r1',
-          author: { name: 'agent' },
-          createdAt: '2026-07-26T19:00:00Z',
-          body: 'fixed in 3f1a',
-        },
-      ],
-    });
-    const { list } = setup([threadFor('f1', raw)]);
+  it('saves on ⌘↵', () => {
+    const { comments, list } = setup([threadFor('f1', comment())]);
+    const input = inputOf(list);
+    input.value = 'via keyboard';
+    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', metaKey: true }));
 
-    expect(list.el.querySelector('.dv-thread__badge')?.textContent).toBe('stale');
-    expect(list.el.querySelectorAll('.dv-thread__reply').length).toBe(1);
-    expect(list.el.querySelector('.dv-thread__card')?.getAttribute('data-stale')).toBe('true');
+    expect(comments.update).toHaveBeenCalledWith('c1', { body: 'via keyboard' });
+    list.destroy();
+  });
+
+  it('skips a save that changes nothing', () => {
+    const { comments, list } = setup([threadFor('f1', comment())]);
+    buttonFor(list, 'save')?.click();
+    inputOf(list).value = '';
+    buttonFor(list, 'save')?.click();
+
+    expect(comments.update).not.toHaveBeenCalled();
+    list.destroy();
+  });
+
+  it('deletes through the store', () => {
+    const { comments, list } = setup([threadFor('f1', comment())]);
+    buttonFor(list, 'delete')?.click();
+
+    expect(comments.remove).toHaveBeenCalledWith('c1');
     list.destroy();
   });
 
   it('hides the actions for a thread still being saved', () => {
     const { list } = setup([threadFor('f1', comment(), true)]);
     expect(list.el.querySelector<HTMLElement>('.dv-thread__actions')?.hidden).toBe(true);
-    list.destroy();
-  });
-
-  it('drives status changes, replies and deletion through the store', () => {
-    const { comments, list } = setup([threadFor('f1', comment())]);
-    const buttons = [...list.el.querySelectorAll<HTMLButtonElement>('.dv-thread__action')];
-    const byLabel = (label: string): HTMLButtonElement | undefined =>
-      buttons.find((button) => button.textContent === label);
-
-    byLabel('resolve')?.click();
-    expect(comments.update).toHaveBeenCalledWith('c1', { status: 'resolved' });
-
-    byLabel('wontfix')?.click();
-    expect(comments.update).toHaveBeenCalledWith('c1', { status: 'wontfix' });
-
-    byLabel('reply')?.click();
-    const input = list.el.querySelector<HTMLTextAreaElement>('.dv-thread__input');
-    if (input) input.value = 'thanks';
-    byLabel('send')?.click();
-    expect(comments.reply).toHaveBeenCalledWith('c1', 'thanks');
-
-    byLabel('delete')?.click();
-    expect(comments.remove).toHaveBeenCalledWith('c1');
-    list.destroy();
-  });
-
-  it('reopens a resolved thread', () => {
-    const { comments, list } = setup([threadFor('f1', comment({ status: 'resolved' }))]);
-    list.el.querySelector<HTMLButtonElement>('.dv-thread__action')?.click();
-    expect(comments.update).toHaveBeenCalledWith('c1', { status: 'open' });
     list.destroy();
   });
 
@@ -173,10 +169,10 @@ describe('createThreadList', () => {
 
     list.update([threadFor('f1', comment({ id: 'c2' }))]);
     for (const button of stale) button.click();
-    expect(comments.update).not.toHaveBeenCalled();
+    expect(comments.remove).not.toHaveBeenCalled();
 
-    list.el.querySelector<HTMLButtonElement>('.dv-thread__action')?.click();
-    expect(comments.update).toHaveBeenCalledWith('c2', { status: 'resolved' });
+    buttonFor(list, 'delete')?.click();
+    expect(comments.remove).toHaveBeenCalledWith('c2');
     list.destroy();
   });
 });

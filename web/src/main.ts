@@ -42,7 +42,7 @@ const help = createLazyOverlay(shell.overlays, () =>
   import('./ui/help').then((module) => module.createHelp(deps)),
 );
 const composer = createLazyOverlay(shell.overlays, () =>
-  import('./comments/composer').then((m) => m.createComposer({ bus, comments, viewer })),
+  import('./comments/composer').then((m) => m.createComposer({ store, bus, comments, viewer })),
 );
 
 createThemeController(deps).start();

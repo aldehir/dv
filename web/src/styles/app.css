@@ -402,10 +402,12 @@ samp,
   text-align: left;
 }
 
+/* The last track is a fixed slot, so the status letter lands on the same x in
+   every row; the pip sits in its own track and takes the width change. */
 .dv-tree__row {
-  grid-template-columns: auto auto minmax(0, 1fr) auto auto auto;
+  grid-template-columns: auto auto minmax(0, 1fr) auto auto 1rem;
   gap: 0.25rem;
-  padding-right: 0;
+  padding-right: 0.5rem;
 }
 
 .dv-tree__row .dv-tree__name {
@@ -486,40 +488,34 @@ samp,
   color: var(--dv-fg-faint);
 }
 
-.dv-badge {
-  display: grid;
-  place-items: center;
-  width: 1.15rem;
-  height: 1.15rem;
-  margin-left: 0.35rem;
-  color: var(--dv-base);
-  font-size: 0.75em;
+.dv-tree__mark {
+  color: var(--dv-fg-faint);
+  font-size: 0.92em;
   font-weight: 700;
-  border-radius: var(--dv-radius) 0 0 var(--dv-radius);
-  background: var(--dv-fg-faint);
+  text-align: center;
 }
 
-.dv-badge--added {
-  background: var(--dv-added);
+.dv-tree__mark--added {
+  color: var(--dv-added);
 }
 
-.dv-badge--deleted {
-  background: var(--dv-removed);
+.dv-tree__mark--deleted {
+  color: var(--dv-removed);
 }
 
-.dv-badge--modified {
-  background: var(--dv-modified);
+.dv-tree__mark--modified {
+  color: var(--dv-modified);
 }
 
-.dv-badge--renamed,
-.dv-badge--copied {
-  background: var(--dv-renamed);
+.dv-tree__mark--renamed,
+.dv-tree__mark--copied {
+  color: var(--dv-renamed);
 }
 
-.dv-badge--untracked,
-.dv-badge--typechange,
-.dv-badge--unmerged {
-  background: var(--dv-warning);
+.dv-tree__mark--untracked,
+.dv-tree__mark--typechange,
+.dv-tree__mark--unmerged {
+  color: var(--dv-warning);
 }
 
 .dv-pip {
@@ -527,6 +523,7 @@ samp,
   padding: 0 0.3rem;
   color: var(--dv-base);
   font-size: 0.8em;
+  font-variant-numeric: tabular-nums;
   text-align: center;
   background: var(--dv-accent);
   border-radius: 999px;
@@ -656,48 +653,16 @@ samp,
 
 .dv-thread__card {
   display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
   gap: 0.4rem;
   padding: 0.5rem 0.6rem;
   color: var(--dv-fg);
   background: var(--dv-bg-raised);
   border: 1px solid var(--dv-border-strong);
-  border-left: 3px solid var(--dv-accent);
   border-radius: var(--dv-radius);
 }
 
-.dv-thread__card[data-status='resolved'] {
-  border-left-color: var(--dv-added);
-}
-
-.dv-thread__card[data-status='wontfix'] {
-  border-left-color: var(--dv-fg-faint);
-}
-
-.dv-thread__card[data-stale='true'] {
-  border-left-color: var(--dv-warning);
-}
-
-.dv-thread__head {
-  display: flex;
-  gap: 0.5rem;
-  align-items: baseline;
-  flex-wrap: wrap;
-}
-
-.dv-thread__author {
-  font-weight: 600;
-}
-
-.dv-thread__where,
-.dv-thread__status,
-.dv-thread__time {
-  color: var(--dv-fg-muted);
-}
-
-.dv-thread__spacer {
-  flex: 1 1 auto;
-}
-
+/* Still worn by the inbox rows. */
 .dv-thread__badge {
   padding: 0 0.35rem;
   color: var(--dv-base);
@@ -706,48 +671,13 @@ samp,
   border-radius: 999px;
 }
 
-.dv-thread__body {
-  display: grid;
-  gap: 0.4rem;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-}
-
-.dv-thread__replies {
-  display: grid;
-  gap: 0.4rem;
-  margin: 0;
-  padding-left: 0.6rem;
-  border-left: 1px solid var(--dv-border);
-  list-style: none;
-}
-
-.dv-thread__reply-head {
-  display: flex;
-  gap: 0.5rem;
-  align-items: baseline;
-}
-
-.dv-thread__reply-body {
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-}
-
 .dv-thread__actions {
-  display: flex;
-  gap: 0.35rem;
-  flex-wrap: wrap;
-}
-
-.dv-thread__composer {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 0.35rem;
-  align-items: end;
+  gap: 0.3rem;
+  align-content: start;
 }
 
-.dv-thread__input,
-.dv-composer__input {
+.dv-thread__input {
   width: 100%;
   padding: 0.3rem 0.4rem;
   color: var(--dv-fg);
@@ -764,10 +694,7 @@ samp,
   right: 1.25rem;
   bottom: 2.25rem;
   z-index: 9;
-  display: grid;
-  gap: 0.5rem;
   width: min(34rem, calc(100vw - 2.5rem));
-  padding: 0.6rem 0.75rem;
   color: var(--dv-fg);
   background: var(--dv-bg-raised);
   border: 1px solid var(--dv-accent);
@@ -775,30 +702,40 @@ samp,
   box-shadow: 0 8px 24px color-mix(in srgb, var(--dv-crust) 60%, transparent);
 }
 
-.dv-composer__head {
-  display: flex;
-  gap: 0.5rem;
-  align-items: baseline;
-  justify-content: space-between;
+/* The box is the textarea; the controls float over its bottom edge. */
+.dv-composer__input {
+  display: block;
+  width: 100%;
+  min-height: 9rem;
+  padding: 0.6rem 0.75rem 2.5rem;
+  color: var(--dv-fg);
+  font-family: inherit;
+  font-size: inherit;
+  background: transparent;
+  border: 0;
+  border-radius: inherit;
+  resize: none;
 }
 
-.dv-composer__title {
-  font-weight: 600;
+/* The panel's own accent border is the focus ring. */
+.dv-composer__input:focus-visible {
+  outline: none;
 }
 
-.dv-composer__where {
-  min-width: 0;
-  overflow: hidden;
-  color: var(--dv-fg-muted);
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-
-.dv-composer__foot {
+.dv-composer__bar {
+  position: absolute;
+  right: 0.6rem;
+  bottom: 0.5rem;
+  left: 0.6rem;
   display: flex;
   gap: 0.5rem;
   align-items: center;
   justify-content: flex-end;
+  pointer-events: none;
+}
+
+.dv-composer__bar > * {
+  pointer-events: auto;
 }
 
 .dv-composer__notice {
@@ -894,50 +831,3 @@ samp,
   color: var(--dv-fg-faint);
 }
 
-.dv-md__p,
-.dv-md__quote,
-.dv-md__pre,
-.dv-md__list,
-.dv-md__heading {
-  margin: 0;
-}
-
-.dv-md__heading {
-  font-weight: 600;
-}
-
-.dv-md__heading--1 {
-  font-size: 1.15em;
-}
-
-.dv-md__heading--2 {
-  font-size: 1.08em;
-}
-
-.dv-md__quote {
-  padding-left: 0.5rem;
-  color: var(--dv-fg-muted);
-  border-left: 2px solid var(--dv-border-strong);
-}
-
-.dv-md__pre {
-  overflow-x: auto;
-  padding: 0.4rem 0.5rem;
-  background: var(--dv-bg-sunken);
-  border-radius: var(--dv-radius);
-}
-
-.dv-md__list {
-  padding-left: 1.2rem;
-  list-style: revert;
-}
-
-.dv-md__link {
-  color: var(--dv-accent);
-  text-decoration: underline;
-}
-
-.dv-md__rule {
-  border: 0;
-  border-top: 1px solid var(--dv-border);
-}

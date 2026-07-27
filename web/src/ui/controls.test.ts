@@ -22,7 +22,7 @@ describe('createControls', () => {
     const labels = [...controls.el.querySelectorAll('.dv-control__label')].map(
       (label) => label.textContent,
     );
-    expect(labels).toEqual(['View', 'Wrap', 'Comments', 'Theme']);
+    expect(labels).toEqual(['View', 'Wrap', 'Theme']);
     controls.destroy();
   });
 
@@ -63,23 +63,6 @@ describe('createControls', () => {
       select.dispatchEvent(new Event('change'));
     }
     expect(emitted).toHaveBeenCalledWith('latte');
-    controls.destroy();
-  });
-
-  it('hides the comment row until comments are enabled', () => {
-    const { store, bus, controls } = setup();
-    const toggled = vi.fn();
-    bus.on('panel:toggle', toggled);
-
-    const button = labelled(controls, 'Toggle the comment inbox');
-    const row = button.closest<HTMLElement>('.dv-control');
-    expect(row?.hidden).toBe(true);
-
-    store.set({ commentsEnabled: true });
-    expect(row?.hidden).toBe(false);
-
-    button.click();
-    expect(toggled).toHaveBeenCalledTimes(1);
     controls.destroy();
   });
 

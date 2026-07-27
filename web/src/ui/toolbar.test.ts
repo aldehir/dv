@@ -60,6 +60,26 @@ describe('createToolbar', () => {
     toolbar.destroy();
   });
 
+  it('hides the comment inbox toggle until comments are enabled', () => {
+    const { store, bus, toolbar } = setup();
+    const toggled = vi.fn();
+    bus.on('panel:toggle', toggled);
+
+    const button = labelled(toolbar, 'Toggle the comment inbox');
+    expect(button.hidden).toBe(true);
+    expect(button.getAttribute('aria-pressed')).toBe('false');
+
+    store.set({ commentsEnabled: true });
+    expect(button.hidden).toBe(false);
+
+    button.click();
+    expect(toggled).toHaveBeenCalledTimes(1);
+
+    store.set({ panelVisible: true });
+    expect(button.getAttribute('aria-pressed')).toBe('true');
+    toolbar.destroy();
+  });
+
   it('opens the keyboard help', () => {
     const { bus, toolbar } = setup();
     const toggled = vi.fn();

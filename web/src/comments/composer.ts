@@ -2,38 +2,34 @@ import type { Bus } from '../core/bus';
 import type { Component, OverlayProps } from '../core/component';
 import { createDisposer } from '../core/component';
 import { el, on } from '../core/dom';
+import type { AppStore, LineSelection } from '../core/store';
 import type { Viewer } from '../diff/viewer';
-import { sideOfRange } from './anchors';
+import { draftKeyFor } from './anchors';
 import type { ComposeTarget, CommentsStore } from './store';
 
 export interface ComposerDeps {
+  store: AppStore;
   bus: Bus;
   comments: CommentsStore;
   viewer: Viewer;
 }
 
-const anchorLabel = (target: ComposeTarget): string => {
-  const side = sideOfRange(target.range) === 'deletions' ? 'old' : 'new';
-  const start = Math.min(target.range.start, target.range.end);
-  const end = Math.max(target.range.start, target.range.end);
-  const lines = start === end ? `L${end}` : `L${start}-L${end}`;
-  return `${target.path} · ${side} ${lines}`;
-};
-
 export const createComposer = ({
+  store,
   bus,
   comments,
   viewer,
 }: ComposerDeps): Component<OverlayProps> => {
   const disposer = createDisposer();
   let target: ComposeTarget | null = null;
+  let open = false;
   let saving = false;
+  let following = false;
 
-  const where = el('span', { class: 'dv-composer__where' });
   const input = el('textarea', {
     class: 'dv-composer__input',
     rows: 6,
-    placeholder: 'Markdown comment — ⌘↵ or Ctrl↵ to save, Esc to cancel',
+    placeholder: 'Comment — ⌘↵ or Ctrl↵ to save, Esc to cancel',
     spellcheck: false,
   });
   const notice = el('span', { class: 'dv-composer__notice', hidden: true });
@@ -51,14 +47,8 @@ export const createComposer = ({
   const root = el(
     'div',
     { class: 'dv-composer', hidden: true },
-    el(
-      'div',
-      { class: 'dv-composer__head' },
-      el('span', { class: 'dv-composer__title', textContent: 'Comment' }),
-      where,
-    ),
     input,
-    el('div', { class: 'dv-composer__foot' }, notice, cancel, save),
+    el('div', { class: 'dv-composer__bar' }, notice, cancel, save),
   );
 
   const syncNotice = (): void => {
@@ -76,13 +66,28 @@ export const createComposer = ({
     if (target?.key !== next.key) {
       target = next;
       input.value = comments.draft(next.key);
-      where.textContent = anchorLabel(next);
-      viewer.revealRange(next.fileId, next.range);
+      // Following the selection means the range is already on screen; re-centring
+      // it mid-drag would fight the pointer.
+      if (!following) viewer.revealRange(next.fileId, next.range);
     }
     syncNotice();
   };
 
+  // An open composer follows the line selection instead of demanding another `c`.
+  const retarget = (selection: LineSelection | null): void => {
+    if (!open || target === null || selection === null) return;
+    const key = draftKeyFor(selection.id, selection.range);
+    if (key === target.key) return;
+    const carried = input.value;
+    comments.setDraft(target.key, '');
+    comments.setDraft(key, carried);
+    following = true;
+    comments.setCompose({ fileId: selection.id, range: selection.range });
+    following = false;
+  };
+
   const close = (): void => {
+    open = false;
     root.hidden = true;
     comments.setCompose(null);
   };
@@ -123,14 +128,16 @@ export const createComposer = ({
   disposer.add(on(save, 'click', commit));
   disposer.add(on(cancel, 'click', () => bus.emit('overlay:dismiss')));
   disposer.add(comments.subscribe(sync));
+  disposer.add(store.subscribe('selection', retarget));
 
   return {
     el: root,
-    update({ open }: OverlayProps) {
-      if (!open) {
+    update(props: OverlayProps) {
+      if (!props.open) {
         close();
         return;
       }
+      open = true;
       sync();
       root.hidden = target === null;
       if (target !== null) input.focus();

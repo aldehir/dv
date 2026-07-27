@@ -1,4 +1,4 @@
-import type { ApiClient } from '../api/client';
+import type { ApiClient, Mutation } from '../api/client';
 import { ApiError } from '../api/client';
 import type { SseSource } from '../api/sse';
 import { createSse } from '../api/sse';
@@ -82,6 +82,7 @@ export const createCommentsStore = ({
   const disposer = createDisposer();
   const listeners = new Set<() => void>();
   const drafts = new Map<string, string>();
+  const abandoned = new Set<string>();
   let known = new Map<string, Comment>();
   let optimistic = new Map<string, Comment>();
   let cached: readonly Thread[] | null = null;
@@ -165,6 +166,22 @@ export const createCommentsStore = ({
   const adopt = (comment: Comment): void => {
     known.set(comment.id, comment);
     notify();
+  };
+
+  // Every mutation hands back the etag it wrote, so the next If-Match is never stale.
+  const track = <T>(result: Mutation<T>): T => {
+    if (result.etag !== '') etag = result.etag;
+    return result.value;
+  };
+
+  const erase = async (id: string): Promise<void> => {
+    try {
+      track(await client.deleteComment(id, etag));
+      bus.emit('comment:deleted', { id });
+      notify();
+    } catch (error: unknown) {
+      await recover(error);
+    }
   };
 
   const stream = createSse({
@@ -265,14 +282,20 @@ export const createCommentsStore = ({
       notify();
 
       try {
-        const saved = await client.createComment({ anchor, body });
+        const saved = track(await client.createComment({ anchor, body }));
         optimistic.delete(draft.id);
         drafts.delete(target.key);
+        // Deleted while the post was in flight: drop the echo instead of resurrecting it.
+        if (abandoned.delete(draft.id)) {
+          await erase(saved.id);
+          return null;
+        }
         adopt(saved);
         bus.emit('comment:created', saved);
         return saved;
       } catch (error: unknown) {
         optimistic.delete(draft.id);
+        abandoned.delete(draft.id);
         await recover(error);
         return null;
       }
@@ -284,7 +307,7 @@ export const createCommentsStore = ({
         notify();
       }
       try {
-        const saved = await client.updateComment(id, patch, etag);
+        const saved = track(await client.updateComment(id, patch, etag));
         failure = null;
         adopt(saved);
         bus.emit('comment:updated', saved);
@@ -296,11 +319,18 @@ export const createCommentsStore = ({
       }
     },
     async remove(id) {
+      // A comment the server has never seen: forget it here, and skip the echo later.
+      if (optimistic.delete(id)) {
+        abandoned.add(id);
+        failure = null;
+        notify();
+        return true;
+      }
       const previous = known.get(id);
       known.delete(id);
       notify();
       try {
-        await client.deleteComment(id, etag);
+        track(await client.deleteComment(id, etag));
         failure = null;
         bus.emit('comment:deleted', { id });
         notify();
@@ -313,7 +343,7 @@ export const createCommentsStore = ({
     },
     async reply(id, body) {
       try {
-        const saved = await client.addReply(id, body);
+        const saved = track(await client.addReply(id, body));
         failure = null;
         const parent = known.get(id);
         if (parent) adopt({ ...parent, replies: [...parent.replies, saved] });

@@ -125,6 +125,37 @@ describe('createClient', () => {
   it('does not parse a body for deletes', async () => {
     const fetchImpl = vi.fn(fetchStub(() => new Response(null, { status: 204 })));
     const client = createClient({ fetch: fetchImpl });
-    await expect(client.deleteComment('cmt_1', 'etag-1')).resolves.toBeUndefined();
+    await expect(client.deleteComment('cmt_1', 'etag-1')).resolves.toEqual({
+      value: undefined,
+      etag: '',
+    });
+  });
+
+  it('surfaces the etag a mutation wrote', async () => {
+    const fetchImpl = vi.fn(
+      fetchStub(() =>
+        jsonResponse(
+          { id: 'cmt_1' },
+          { status: 201, headers: { ETag: '"etag-2"', 'Content-Type': 'application/json' } },
+        ),
+      ),
+    );
+    const client = createClient({ fetch: fetchImpl });
+
+    const created = await client.createComment({
+      anchor: { path: 'a.ts', side: 'additions', startLine: 1, endLine: 1 },
+      body: 'hi',
+    });
+    expect(created.etag).toBe('etag-2');
+    expect(created.value.id).toBe('cmt_1');
+  });
+
+  it('unwraps a weak etag on a bodyless response', async () => {
+    const fetchImpl = vi.fn(
+      fetchStub(() => new Response(null, { status: 204, headers: { ETag: 'W/"etag-3"' } })),
+    );
+    const client = createClient({ fetch: fetchImpl });
+    const deleted = await client.deleteComment('cmt_1', 'etag-2');
+    expect(deleted.etag).toBe('etag-3');
   });
 });

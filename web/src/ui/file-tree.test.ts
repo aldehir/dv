@@ -57,7 +57,7 @@ describe('createFileTree', () => {
 
     const first = rows(tree)[0];
     expect(first?.dataset.fileId).toBe('f1');
-    expect(first?.querySelector('.dv-badge')?.textContent).toBe('M');
+    expect(first?.querySelector('.dv-tree__mark')?.textContent).toBe('M');
     expect(first?.querySelector('.dv-tree__name')?.textContent).toBe('blob.go');
     expect(first?.title).toBe('internal/gitx/blob.go');
     expect(first?.querySelector('.dv-count--add')?.textContent).toBe('+3');
@@ -140,6 +140,31 @@ describe('createFileTree', () => {
 
     store.set({ filter: '' });
     expect(visibleRows(tree).length).toBe(3);
+    tree.destroy();
+  });
+
+  /** The letter only lines up if it stays the last cell, right of the pip. */
+  it('keeps the status letter in the trailing slot whatever the comment count', () => {
+    const { store, tree } = setup();
+    const shape = () =>
+      rows(tree).map((row) => {
+        const mark = row.lastElementChild;
+        return {
+          letter: mark?.textContent,
+          className: mark?.className,
+          afterPip: mark?.previousElementSibling?.classList.contains('dv-pip'),
+        };
+      });
+
+    const before = shape();
+    expect(before).toEqual([
+      { letter: 'M', className: 'dv-tree__mark dv-tree__mark--modified', afterPip: true },
+      { letter: 'A', className: 'dv-tree__mark dv-tree__mark--added', afterPip: true },
+      { letter: 'D', className: 'dv-tree__mark dv-tree__mark--deleted', afterPip: true },
+    ]);
+
+    store.set({ commentCounts: { f1: 2, f3: 11 } });
+    expect(shape()).toEqual(before);
     tree.destroy();
   });
 

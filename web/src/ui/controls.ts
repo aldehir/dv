@@ -11,8 +11,6 @@ export interface ControlsProps {
   view: ViewMode;
   wrap: boolean;
   themePref: ThemePref;
-  panelVisible: boolean;
-  commentsEnabled: boolean;
 }
 
 export interface ControlsDeps {
@@ -24,8 +22,6 @@ export const controlsProps = (state: AppState): ControlsProps => ({
   view: state.view,
   wrap: state.wrap,
   themePref: state.themePref,
-  panelVisible: state.panelVisible,
-  commentsEnabled: state.commentsEnabled,
 });
 
 const row = (label: string, ...children: (Node | string)[]): HTMLElement =>
@@ -75,7 +71,6 @@ export const createControls = ({ store, bus }: ControlsDeps): Component<Controls
     icon('unified'),
   );
   const wrap = toggle('wrap', 'Wrap long lines', 'Wrap long lines');
-  const comments = toggle('comments', 'Toggle the comment inbox', 'Toggle the comment inbox');
   const themeSelect = el(
     'select',
     { class: 'dv-select', ariaLabel: 'Catppuccin flavor', title: 'Catppuccin flavor' },
@@ -84,13 +79,11 @@ export const createControls = ({ store, bus }: ControlsDeps): Component<Controls
     ),
   );
 
-  const commentsRow = row('Comments', comments.button);
   const root = el(
     'div',
     { class: 'dv-controls' },
     row('View', el('div', { class: 'dv-seg' }, splitButton, unifiedButton)),
     row('Wrap', wrap.button),
-    commentsRow,
     row('Theme', themeSelect),
   );
 
@@ -99,16 +92,12 @@ export const createControls = ({ store, bus }: ControlsDeps): Component<Controls
     unifiedButton.setAttribute('aria-pressed', String(props.view === 'unified'));
     wrap.button.setAttribute('aria-pressed', String(props.wrap));
     wrap.state.textContent = props.wrap ? 'on' : 'off';
-    comments.button.setAttribute('aria-pressed', String(props.panelVisible));
-    comments.state.textContent = props.panelVisible ? 'on' : 'off';
-    commentsRow.hidden = !props.commentsEnabled;
     themeSelect.value = props.themePref;
   };
 
   disposer.add(on(splitButton, 'click', () => store.set({ view: 'split' })));
   disposer.add(on(unifiedButton, 'click', () => store.set({ view: 'unified' })));
   disposer.add(on(wrap.button, 'click', () => store.set({ wrap: !store.get().wrap })));
-  disposer.add(on(comments.button, 'click', () => bus.emit('panel:toggle')));
   disposer.add(
     on(themeSelect, 'change', () => {
       bus.emit('theme:set', themeSelect.value as ThemePref);

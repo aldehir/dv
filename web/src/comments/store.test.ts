@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { ApiClient } from '../api/client';
+import type { ApiClient, Mutation } from '../api/client';
 import { ApiError } from '../api/client';
 import type { SseSource } from '../api/sse';
 import type {
@@ -108,6 +108,7 @@ interface Harness {
 }
 
 let created: NewCommentRequest[] = [];
+let deletes: { id: string; etag?: string }[] = [];
 
 const harness = (over: Partial<ApiClient> = {}): Harness => {
   const store = createStore(createInitialState());
@@ -126,16 +127,23 @@ const harness = (over: Partial<ApiClient> = {}): Harness => {
       Promise.resolve({ doc: responses.doc, etag: responses.etag }),
     createComment: (input) => {
       created.push(input);
-      return Promise.resolve(comment('server-1'));
+      return Promise.resolve({ value: comment('server-1'), etag: 'etag-2' });
     },
-    updateComment: (id) => Promise.resolve({ ...comment(id), status: 'resolved' }),
-    deleteComment: () => Promise.resolve(),
+    updateComment: (id) =>
+      Promise.resolve({ value: { ...comment(id), status: 'resolved' }, etag: 'etag-2' }),
+    deleteComment: (id, etag) => {
+      deletes.push({ id, etag });
+      return Promise.resolve({ value: undefined, etag: 'etag-2' });
+    },
     addReply: (id) =>
       Promise.resolve({
-        id: `${id}-r1`,
-        author: { name: 'agent' },
-        createdAt: '2026-07-26T19:00:00Z',
-        body: 'done',
+        value: {
+          id: `${id}-r1`,
+          author: { name: 'agent' },
+          createdAt: '2026-07-26T19:00:00Z',
+          body: 'done',
+        },
+        etag: 'etag-2',
       }),
     ...over,
   };
@@ -158,6 +166,7 @@ const target = (): ComposeTarget => ({
 
 beforeEach(() => {
   created = [];
+  deletes = [];
 });
 
 describe('createCommentsStore', () => {
@@ -298,6 +307,62 @@ describe('createCommentsStore', () => {
 
     expect(await bench.comments.remove('c1')).toBe(false);
     expect(bench.comments.threads().length).toBe(1);
+    bench.comments.destroy();
+  });
+
+  it('deletes a just-created comment with the etag the create returned', async () => {
+    let current = 'etag-1';
+    const bench = harness({
+      createComment: (input) => {
+        created.push(input);
+        current = 'etag-2';
+        return Promise.resolve({ value: comment('server-1'), etag: current });
+      },
+      deleteComment: (id, etag) => {
+        deletes.push({ id, etag });
+        if (etag !== current) {
+          return Promise.reject(
+            new ApiError('conflict', 409, `/api/comments/${id}`, 'etag mismatch'),
+          );
+        }
+        current = 'etag-3';
+        return Promise.resolve({ value: undefined, etag: current });
+      },
+    });
+    bench.comments.start();
+    await vi.waitFor(() => expect(bench.store.get().commentCounts).toEqual({}));
+
+    await bench.comments.create(target(), 'please fix');
+    bench.responses.doc = doc([comment('server-1')]);
+
+    expect(await bench.comments.remove('server-1')).toBe(true);
+    expect(deletes).toEqual([{ id: 'server-1', etag: 'etag-2' }]);
+    expect(bench.comments.threads()).toEqual([]);
+    expect(bench.comments.error()).toBeNull();
+    bench.comments.destroy();
+  });
+
+  it('drops a still-pending comment locally and discards the late echo', async () => {
+    let settle: (result: Mutation<Comment>) => void = () => undefined;
+    const bench = harness({
+      createComment: () =>
+        new Promise<Mutation<Comment>>((resolve) => {
+          settle = resolve;
+        }),
+    });
+
+    const saving = bench.comments.create(target(), 'oops');
+    const pending = bench.comments.threads()[0]?.id ?? '';
+    expect(pending.startsWith('dv-pending-')).toBe(true);
+
+    expect(await bench.comments.remove(pending)).toBe(true);
+    expect(bench.comments.threads()).toEqual([]);
+    expect(deletes).toEqual([]);
+
+    settle({ value: comment('server-1'), etag: 'etag-2' });
+    expect(await saving).toBeNull();
+    expect(bench.comments.threads()).toEqual([]);
+    expect(deletes).toEqual([{ id: 'server-1', etag: 'etag-2' }]);
     bench.comments.destroy();
   });
 

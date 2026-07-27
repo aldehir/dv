@@ -53,6 +53,9 @@ const openHighlightableFile = async (page: Page) => {
   await expect
     .poll(() => page.evaluate(countTokenSpans), { timeout: 15_000 })
     .toBeGreaterThan(0);
+  // Only what is on screen gets rendered, and a file whose first hunk sits below
+  // the fold shows nothing but context until we step to it.
+  await page.keyboard.press(']');
 };
 
 test.beforeEach(async ({ page }) => {
@@ -67,8 +70,8 @@ test('renders a real diff with highlighted lines', async ({ page }) => {
 
   await openHighlightableFile(page);
 
-  const changed = page.locator('diffs-container [data-line-type="change-addition"]');
-  expect(await changed.count()).toBeGreaterThan(0);
+  const changed = page.locator('diffs-container [data-line-type$="addition"]');
+  await expect.poll(() => changed.count(), { timeout: 15_000 }).toBeGreaterThan(0);
 });
 
 test('paints the code surface with catppuccin, not the library default', async ({ page }) => {
