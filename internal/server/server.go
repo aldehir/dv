@@ -115,9 +115,12 @@ func (s *Server) Handler() http.Handler { return s.handler }
 func (s *Server) URL() string { return s.url }
 
 func (s *Server) Listen() (string, error) {
-	host, err := loopbackHost(s.opts.Host)
+	host, err := bindHost(s.opts.Host)
 	if err != nil {
 		return "", err
+	}
+	if isWildcard(host) {
+		s.log.Warn("listening on every interface: anyone who can reach this port can read the diff and write comments", "host", host)
 	}
 	addr := net.JoinHostPort(host, strconv.Itoa(s.opts.Port))
 	listener, err := net.Listen("tcp", addr)
@@ -129,7 +132,7 @@ func (s *Server) Listen() (string, error) {
 		return "", fmt.Errorf("cannot listen on %s: %w", addr, err)
 	}
 	s.listener = listener
-	s.url = "http://" + net.JoinHostPort(host, strconv.Itoa(listener.Addr().(*net.TCPAddr).Port))
+	s.url = "http://" + net.JoinHostPort(browsableHost(host), strconv.Itoa(listener.Addr().(*net.TCPAddr).Port))
 	return s.url, nil
 }
 
@@ -197,7 +200,7 @@ func (s *Server) cachedManifest() (*model.Manifest, error) {
 
 func (s *Server) workers() int { return s.opts.Workers }
 
-func loopbackHost(host string) (string, error) {
+func bindHost(host string) (string, error) {
 	switch host {
 	case "":
 		return "127.0.0.1", nil
@@ -205,8 +208,24 @@ func loopbackHost(host string) (string, error) {
 		return host, nil
 	}
 	ip := net.ParseIP(host)
-	if ip == nil || !ip.IsLoopback() {
-		return "", fmt.Errorf("host %q is not a loopback address: dv only listens on loopback", host)
+	if ip == nil || !(ip.IsLoopback() || ip.IsUnspecified()) {
+		return "", fmt.Errorf("host %q is neither loopback nor a wildcard: dv listens on a loopback address, 0.0.0.0, or ::", host)
 	}
 	return host, nil
+}
+
+func isWildcard(host string) bool {
+	ip := net.ParseIP(host)
+	return ip != nil && ip.IsUnspecified()
+}
+
+func browsableHost(host string) string {
+	ip := net.ParseIP(host)
+	if ip == nil || !ip.IsUnspecified() {
+		return host
+	}
+	if ip.To4() != nil {
+		return "127.0.0.1"
+	}
+	return "::1"
 }

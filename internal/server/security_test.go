@@ -80,29 +80,37 @@ func TestNewTokenIsUnique(t *testing.T) {
 	}
 }
 
-func TestLoopbackHost(t *testing.T) {
+func TestBindHost(t *testing.T) {
 	cases := []struct {
-		host string
-		want string
-		ok   bool
+		host      string
+		want      string
+		browsable string
+		ok        bool
 	}{
-		{"", "127.0.0.1", true},
-		{"localhost", "localhost", true},
-		{"127.0.0.1", "127.0.0.1", true},
-		{"127.0.0.53", "127.0.0.53", true},
-		{"::1", "::1", true},
-		{"0.0.0.0", "", false},
-		{"192.168.1.5", "", false},
-		{"example.com", "", false},
+		{"", "127.0.0.1", "127.0.0.1", true},
+		{"localhost", "localhost", "localhost", true},
+		{"127.0.0.1", "127.0.0.1", "127.0.0.1", true},
+		{"127.0.0.53", "127.0.0.53", "127.0.0.53", true},
+		{"::1", "::1", "::1", true},
+		{"0.0.0.0", "0.0.0.0", "127.0.0.1", true},
+		{"::", "::", "::1", true},
+		{"192.168.1.5", "", "", false},
+		{"example.com", "", "", false},
 	}
 	for _, tc := range cases {
-		got, err := loopbackHost(tc.host)
+		got, err := bindHost(tc.host)
 		if tc.ok != (err == nil) {
-			t.Errorf("loopbackHost(%q) error = %v, want ok=%v", tc.host, err, tc.ok)
+			t.Errorf("bindHost(%q) error = %v, want ok=%v", tc.host, err, tc.ok)
 			continue
 		}
-		if tc.ok && got != tc.want {
-			t.Errorf("loopbackHost(%q) = %q, want %q", tc.host, got, tc.want)
+		if !tc.ok {
+			continue
+		}
+		if got != tc.want {
+			t.Errorf("bindHost(%q) = %q, want %q", tc.host, got, tc.want)
+		}
+		if browsable := browsableHost(got); browsable != tc.browsable {
+			t.Errorf("browsableHost(%q) = %q, want %q", got, browsable, tc.browsable)
 		}
 	}
 }

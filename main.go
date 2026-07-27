@@ -285,7 +285,8 @@ Examples:
 dv options:
   --port <n>            listen on this port (default 8765; falls back to a free
                         one if it is taken)
-  --host <addr>         loopback address to bind (default 127.0.0.1)
+  --host <addr>         address to bind: a loopback address, or 0.0.0.0 (::) to
+                        expose dv on every interface (default 127.0.0.1)
   --no-open             do not launch a browser
   --theme <flavor>      auto|latte|frappe|macchiato|mocha (default auto)
   --view split|unified  initial diff layout (default split)
