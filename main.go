@@ -275,7 +275,7 @@ Usage:
   dv [<opts>] <commit>...<commit>    [--] [<path>...]   vs. the merge base
   dv [<opts>] --cached|--staged [<commit>] [--] [<path>...]
   dv [<opts>] --merge-base <commit> <commit>
-  dv comments list   [--status <s>] [--path <glob>] [--comments <file>]
+  dv comments list   [--path <glob>] [--comments <file>]
   dv comments export [--format md|json|prompt] [-o <file>|-] [--comments <file>]
 
 With no revision, dv shows the same diff as plain 'git diff': the worktree
