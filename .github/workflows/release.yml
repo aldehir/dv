@@ -1,0 +1,53 @@
+name: release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+          cache: true
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.3.14'
+
+      - name: build web
+        run: cd web && bun install --frozen-lockfile && bun run build
+
+      - name: cross compile
+        env:
+          CGO_ENABLED: '0'
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          mkdir -p dist
+          while read -r goos goarch ext; do
+            out="dv-${version}-${goos}-${goarch}${ext}"
+            echo "building ${out}"
+            GOOS="$goos" GOARCH="$goarch" go build -trimpath \
+              -ldflags="-s -w -X main.version=${version}" -o "dist/${out}" .
+          done <<'TARGETS'
+          linux amd64
+          linux arm64
+          darwin amd64
+          darwin arm64
+          windows amd64 .exe
+          TARGETS
+
+      - name: checksums
+        run: cd dist && sha256sum dv-* > SHA256SUMS
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/dv-*
+            dist/SHA256SUMS
+          generate_release_notes: true
