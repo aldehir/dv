@@ -20,7 +20,7 @@ func seedFile(t *testing.T) string {
 		UpdatedAt: "2026-07-26T18:04:11Z",
 		Comments: []model.Comment{
 			{
-				ID: "cmt_open",
+				ID:     "cmt_open",
 				Author: model.Author{Name: "Alde", Email: "alde@example.com"},
 				Body:   "retries forever",
 				Anchor: model.Anchor{
@@ -32,7 +32,7 @@ func seedFile(t *testing.T) string {
 				Replies:        []model.Reply{{ID: "rpl_1", Author: model.Author{Name: "agent"}, Body: "fixed\nin 3f1a"}},
 			},
 			{
-				ID: "cmt_done",
+				ID:     "cmt_done",
 				Author: model.Author{Name: "Alde"},
 				Body:   "nit: naming",
 				Anchor: model.Anchor{
