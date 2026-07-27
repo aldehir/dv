@@ -1,20 +1,16 @@
-import type { Spec, ThemePref, Totals, ViewMode } from '../api/types';
+import type { Spec, Totals } from '../api/types';
 import type { Bus } from '../core/bus';
 import type { Component } from '../core/component';
 import { createDisposer } from '../core/component';
 import { el, on, replaceChildren } from '../core/dom';
 import type { AppState, AppStore } from '../core/store';
-import { THEME_PREFS, themePrefLabel } from '../theme/catppuccin';
+import { icon } from './icons';
 
 export interface ToolbarProps {
   repoRoot: string;
   spec: Spec | null;
   totals: Totals | null;
-  view: ViewMode;
-  wrap: boolean;
-  themePref: ThemePref;
-  panelVisible: boolean;
-  commentsEnabled: boolean;
+  sidebarVisible: boolean;
 }
 
 export interface ToolbarDeps {
@@ -37,12 +33,16 @@ const basename = (path: string): string => {
   return cut < 0 ? trimmed : trimmed.slice(cut + 1);
 };
 
+/** Trims full object ids down to the length people actually read. */
+const shorten = (rev: string): string =>
+  /^[0-9a-f]{40}$/.test(rev) ? rev.slice(0, 8) : rev;
+
 const specSummary = (spec: Spec | null): string => {
   if (!spec) return '';
   const label = SPEC_LABELS[spec.kind];
   if (spec.kind === 'worktree' || spec.kind === 'staged') return label;
-  const left = spec.left === '' ? '∅' : spec.left;
-  const right = spec.right === '' ? 'worktree' : spec.right;
+  const left = spec.left === '' ? '∅' : shorten(spec.left);
+  const right = spec.right === '' ? 'worktree' : shorten(spec.right);
   const joiner = spec.kind === 'three-dot' ? '...' : '..';
   return `${left}${joiner}${right}`;
 };
@@ -51,70 +51,52 @@ export const toolbarProps = (state: AppState): ToolbarProps => ({
   repoRoot: state.session?.repoRoot ?? '',
   spec: state.session?.spec ?? null,
   totals: state.manifest?.totals ?? null,
-  view: state.view,
-  wrap: state.wrap,
-  themePref: state.themePref,
-  panelVisible: state.panelVisible,
-  commentsEnabled: state.commentsEnabled,
+  sidebarVisible: state.sidebarVisible,
 });
 
 export const createToolbar = ({ store, bus }: ToolbarDeps): Component<ToolbarProps> => {
   const disposer = createDisposer();
 
+  const sidebarButton = el(
+    'button',
+    {
+      class: 'dv-icon-btn',
+      type: 'button',
+      ariaLabel: 'Toggle the file tree',
+      title: 'Toggle the file tree',
+    },
+    icon('sidebar'),
+  );
   const repo = el('span', { class: 'dv-toolbar__repo' });
   const rev = el('span', { class: 'dv-toolbar__rev' });
-  const splitButton = el('button', {
-    class: 'dv-btn',
-    type: 'button',
-    textContent: 'split',
-    title: 'Side-by-side diff',
-  });
-  const unifiedButton = el('button', {
-    class: 'dv-btn',
-    type: 'button',
-    textContent: 'unified',
-    title: 'Unified diff',
-  });
-  const wrapButton = el('button', {
-    class: 'dv-btn',
-    type: 'button',
-    textContent: 'wrap',
-    title: 'Wrap long lines',
-  });
-  const panelButton = el('button', {
-    class: 'dv-btn',
-    type: 'button',
-    textContent: 'comments',
-    title: 'Toggle the comment inbox',
-  });
-  const themeSelect = el(
-    'select',
-    { class: 'dv-select', title: 'Catppuccin flavor' },
-    ...THEME_PREFS.map((pref) =>
-      el('option', { value: pref, textContent: themePrefLabel(pref) }),
-    ),
-  );
   const counts = el('div', { class: 'dv-counts' });
+  const helpButton = el('button', {
+    class: 'dv-icon-btn',
+    type: 'button',
+    textContent: '?',
+    ariaLabel: 'Keyboard shortcuts',
+    title: 'Keyboard shortcuts',
+  });
 
   const root = el(
     'div',
     { class: 'dv-toolbar' },
-    el('div', { class: 'dv-toolbar__spec' }, repo, rev),
+    sidebarButton,
+    el(
+      'div',
+      { class: 'dv-toolbar__spec' },
+      repo,
+      el('span', { class: 'dv-toolbar__rev-chip' }, icon('compare'), rev),
+    ),
     el('div', { class: 'dv-toolbar__spacer' }),
     counts,
-    el('div', { class: 'dv-seg' }, splitButton, unifiedButton),
-    el('div', { class: 'dv-toolbar__group' }, wrapButton, panelButton, themeSelect),
+    helpButton,
   );
 
   const update = (props: ToolbarProps): void => {
     repo.textContent = basename(props.repoRoot);
     rev.textContent = specSummary(props.spec);
-    splitButton.setAttribute('aria-pressed', String(props.view === 'split'));
-    unifiedButton.setAttribute('aria-pressed', String(props.view === 'unified'));
-    wrapButton.setAttribute('aria-pressed', String(props.wrap));
-    panelButton.setAttribute('aria-pressed', String(props.panelVisible));
-    panelButton.hidden = !props.commentsEnabled;
-    themeSelect.value = props.themePref;
+    sidebarButton.setAttribute('aria-pressed', String(props.sidebarVisible));
 
     const totals = props.totals;
     replaceChildren(
@@ -134,15 +116,8 @@ export const createToolbar = ({ store, bus }: ToolbarDeps): Component<ToolbarPro
     );
   };
 
-  disposer.add(on(splitButton, 'click', () => store.set({ view: 'split' })));
-  disposer.add(on(unifiedButton, 'click', () => store.set({ view: 'unified' })));
-  disposer.add(on(wrapButton, 'click', () => store.set({ wrap: !store.get().wrap })));
-  disposer.add(on(panelButton, 'click', () => bus.emit('panel:toggle')));
-  disposer.add(
-    on(themeSelect, 'change', () => {
-      bus.emit('theme:set', themeSelect.value as ThemePref);
-    }),
-  );
+  disposer.add(on(helpButton, 'click', () => bus.emit('help:toggle')));
+  disposer.add(on(sidebarButton, 'click', () => bus.emit('sidebar:toggle')));
   disposer.add(store.subscribe((state) => update(toolbarProps(state))));
 
   update(toolbarProps(store.get()));

@@ -39,6 +39,7 @@ export interface BusEvents {
   'comment:step': StepIntent;
   'comment:focus': { id: string };
   'panel:toggle': void;
+  'sidebar:toggle': void;
   'help:toggle': void;
   'overlay:dismiss': void;
 }

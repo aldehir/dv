@@ -15,6 +15,7 @@ export interface ShellProps {
 export interface ShellSlots {
   toolbar: HTMLElement;
   sidebar: HTMLElement;
+  controls: HTMLElement;
   status: HTMLElement;
 }
 
@@ -45,6 +46,7 @@ export const shellProps = (state: AppState): ShellProps => ({
 export const createShell = ({
   toolbar,
   sidebar,
+  controls,
   status,
   store,
   bus,
@@ -60,7 +62,12 @@ export const createShell = ({
     'div',
     { class: 'dv-shell' },
     el('header', { class: 'dv-shell__toolbar' }, toolbar),
-    el('aside', { class: 'dv-shell__sidebar' }, sidebar),
+    el(
+      'aside',
+      { class: 'dv-shell__sidebar' },
+      el('div', { class: 'dv-shell__tree' }, sidebar),
+      el('div', { class: 'dv-shell__controls' }, controls),
+    ),
     el('div', { class: 'dv-shell__main' }, mount, placeholder),
     panel,
     el('footer', { class: 'dv-shell__status' }, status),
@@ -78,6 +85,11 @@ export const createShell = ({
   disposer.add(
     bus.on('panel:toggle', () => {
       store.set({ panelVisible: !store.get().panelVisible });
+    }),
+  );
+  disposer.add(
+    bus.on('sidebar:toggle', () => {
+      store.set({ sidebarVisible: !store.get().sidebarVisible });
     }),
   );
 

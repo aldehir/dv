@@ -1,4 +1,5 @@
 import './styles/reset.css';
+import './styles/inter.css';
 import './styles/victor-mono.css';
 import './theme/theme.css';
 import './styles/app.css';
@@ -12,6 +13,7 @@ import { createRouter } from './core/router';
 import { createInitialState, createStore } from './core/store';
 import { createViewer } from './diff/viewer';
 import { createThemeController } from './theme/controller';
+import { createControls } from './ui/controls';
 import { createFileTree } from './ui/file-tree';
 import { createKeybinds } from './ui/keybinds';
 import { createShell } from './ui/shell';
@@ -29,6 +31,7 @@ const shell = createShell({
   ...deps,
   toolbar: createToolbar(deps).el,
   sidebar: createFileTree(deps).el,
+  controls: createControls(deps).el,
   status: createStatusBar({ store }).el,
 });
 

@@ -1,12 +1,27 @@
-import { existsSync } from 'node:fs';
+import { existsSync, readdirSync } from 'node:fs';
 import { defineConfig, devices } from '@playwright/test';
 
 const PORT = 8799;
-const CACHED_CHROME = `${process.env.HOME}/.cache/ms-playwright/chromium-1208/chrome-linux64/chrome`;
+const BROWSERS = `${process.env.HOME}/.cache/ms-playwright`;
 
 export const COMMENTS_PATH = '/tmp/dv-e2e-comments.json';
 
-const launchOptions = existsSync(CACHED_CHROME) ? { executablePath: CACHED_CHROME } : {};
+/**
+ * Reuse whichever chromium the local playwright cache already holds instead of
+ * pinning a build number that goes stale the next time browsers are installed.
+ */
+const cachedChrome = (): string | undefined => {
+  if (!existsSync(BROWSERS)) return undefined;
+  for (const entry of readdirSync(BROWSERS).sort().reverse()) {
+    if (!entry.startsWith('chromium-')) continue;
+    const binary = `${BROWSERS}/${entry}/chrome-linux64/chrome`;
+    if (existsSync(binary)) return binary;
+  }
+  return undefined;
+};
+
+const executablePath = cachedChrome();
+const launchOptions = executablePath ? { executablePath } : {};
 
 export default defineConfig({
   testDir: './e2e',

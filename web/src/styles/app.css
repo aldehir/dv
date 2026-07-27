@@ -1,10 +1,12 @@
 :root {
-  --dv-sidebar-width: 19rem;
+  --dv-sidebar-width: 20rem;
   --dv-panel-width: 22rem;
   --dv-row-height: 1.6rem;
-  --dv-radius: 4px;
+  --dv-radius: 5px;
   --dv-gap: 0.5rem;
-  --dv-ui-font: 'Victor Mono Variable', ui-monospace, SFMono-Regular, monospace;
+  --dv-indent: 0.8rem;
+  --dv-ui-font: 'Inter Variable', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --dv-code-font: 'Victor Mono Variable', ui-monospace, SFMono-Regular, monospace;
   --dv-ui-size: 13px;
 }
 
@@ -12,6 +14,7 @@ body {
   font-family: var(--dv-ui-font);
   font-size: var(--dv-ui-size);
   line-height: 1.45;
+  letter-spacing: -0.005em;
   color: var(--dv-fg);
   background: var(--dv-bg);
   overflow: hidden;
@@ -19,6 +22,48 @@ body {
 
 #app {
   height: 100%;
+}
+
+code,
+kbd,
+pre,
+samp,
+.dv-mono {
+  font-family: var(--dv-code-font);
+}
+
+.dv-icon {
+  flex: none;
+  stroke-width: 1.75;
+}
+
+/* Quiet, flavor-matched scrollbars. Engines that only do overlay scrollbars
+   (Safari, headless Chromium) ignore the sizing and keep their own. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--dv-scroll-thumb) transparent;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--dv-scroll-thumb);
+  background-clip: padding-box;
+  border: 2px solid transparent;
+  border-radius: 999px;
+}
+
+:hover::-webkit-scrollbar-thumb {
+  background: var(--dv-scroll-thumb-hover);
+  background-clip: padding-box;
 }
 
 .dv-shell {
@@ -39,12 +84,23 @@ body {
 }
 
 .dv-shell__sidebar {
+  display: grid;
   grid-area: sidebar;
+  grid-template-rows: minmax(0, 1fr) auto;
   width: var(--dv-sidebar-width);
   min-width: 0;
   border-right: 1px solid var(--dv-border);
   background: var(--dv-bg-raised);
   overflow: hidden;
+}
+
+.dv-shell__tree {
+  min-height: 0;
+}
+
+.dv-shell__controls {
+  border-top: 1px solid var(--dv-border);
+  background: var(--dv-bg-sunken);
 }
 
 .dv-shell__main {
@@ -94,13 +150,14 @@ body {
   display: flex;
   gap: var(--dv-gap);
   align-items: center;
-  padding: 0.35rem 0.6rem;
+  min-height: 2.3rem;
+  padding: 0.25rem 0.55rem;
 }
 
 .dv-toolbar__spec {
   display: flex;
-  gap: 0.35rem;
-  align-items: baseline;
+  gap: 0.45rem;
+  align-items: center;
   min-width: 0;
 }
 
@@ -109,21 +166,27 @@ body {
   font-weight: 600;
 }
 
-.dv-toolbar__rev {
+.dv-toolbar__rev-chip {
+  display: inline-flex;
+  gap: 0.3rem;
+  align-items: center;
+  min-width: 0;
+  padding: 0.05rem 0.45rem;
   color: var(--dv-fg-muted);
-  white-space: nowrap;
+  background: var(--dv-bg-hover);
+  border-radius: 999px;
+}
+
+.dv-toolbar__rev {
   overflow: hidden;
+  font-family: var(--dv-code-font);
+  font-size: 0.9em;
+  white-space: nowrap;
   text-overflow: ellipsis;
 }
 
 .dv-toolbar__spacer {
   flex: 1 1 auto;
-}
-
-.dv-toolbar__group {
-  display: flex;
-  gap: 0.35rem;
-  align-items: center;
 }
 
 .dv-btn {
@@ -144,15 +207,23 @@ body {
   background: var(--dv-accent);
 }
 
-.dv-seg {
-  display: flex;
-  overflow: hidden;
-  border: 1px solid var(--dv-border-strong);
+.dv-icon-btn {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 1.65rem;
+  height: 1.65rem;
+  color: var(--dv-fg-faint);
   border-radius: var(--dv-radius);
 }
 
-.dv-seg .dv-btn {
-  border-radius: 0;
+.dv-icon-btn:hover {
+  color: var(--dv-fg);
+  background: var(--dv-bg-hover);
+}
+
+.dv-icon-btn[aria-pressed='true'] {
+  color: var(--dv-accent);
 }
 
 .dv-select {
@@ -166,7 +237,88 @@ body {
 .dv-counts {
   display: flex;
   gap: 0.5rem;
+  font-variant-numeric: tabular-nums;
   white-space: nowrap;
+}
+
+.dv-controls {
+  display: grid;
+  gap: 0.25rem;
+  padding: 0.5rem 0.55rem 0.6rem;
+}
+
+.dv-control {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.5rem;
+  align-items: center;
+  min-height: 1.75rem;
+}
+
+.dv-control__label {
+  color: var(--dv-fg-muted);
+}
+
+.dv-control__field {
+  display: flex;
+  gap: 0.3rem;
+  align-items: center;
+}
+
+.dv-seg {
+  display: flex;
+  overflow: hidden;
+  border: 1px solid var(--dv-border-strong);
+  border-radius: var(--dv-radius);
+}
+
+.dv-seg__btn {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 1.55rem;
+  color: var(--dv-fg-faint);
+}
+
+.dv-seg__btn:hover {
+  color: var(--dv-fg);
+  background: var(--dv-bg-hover);
+}
+
+.dv-seg__btn[aria-pressed='true'] {
+  color: var(--dv-base);
+  background: var(--dv-accent);
+}
+
+.dv-toggle {
+  display: flex;
+  gap: 0.35rem;
+  align-items: center;
+  justify-content: center;
+  width: 4.4rem;
+  height: 1.55rem;
+  color: var(--dv-fg-faint);
+  border: 1px solid var(--dv-border-strong);
+  border-radius: var(--dv-radius);
+}
+
+.dv-toggle:hover {
+  color: var(--dv-fg);
+  background: var(--dv-bg-hover);
+}
+
+.dv-toggle[aria-pressed='true'] {
+  color: var(--dv-base);
+  background: var(--dv-accent);
+  border-color: var(--dv-accent);
+}
+
+.dv-toggle__state {
+  font-size: 0.92em;
+}
+
+.dv-control .dv-select {
+  height: 1.55rem;
 }
 
 .dv-count--files {
@@ -188,69 +340,144 @@ body {
 }
 
 .dv-tree__head {
-  padding: 0.4rem 0.5rem;
+  padding: 0.5rem 0.55rem 0.35rem;
+}
+
+.dv-field {
+  display: flex;
+  gap: 0.35rem;
+  align-items: center;
+  padding: 0.2rem 0.45rem;
+  background: var(--dv-bg);
+  border: 1px solid var(--dv-border-strong);
+  border-radius: var(--dv-radius);
+}
+
+.dv-field:focus-within {
+  border-color: var(--dv-accent);
+}
+
+.dv-field__icon {
+  color: var(--dv-fg-faint);
 }
 
 .dv-tree__filter {
   width: 100%;
-  padding: 0.2rem 0.4rem;
+  min-width: 0;
   color: var(--dv-fg);
-  background: var(--dv-bg);
-  border: 1px solid var(--dv-border-strong);
-  border-radius: var(--dv-radius);
+}
+
+.dv-tree__filter:focus-visible {
+  outline: none;
 }
 
 .dv-tree__filter::placeholder {
   color: var(--dv-fg-faint);
 }
 
-.dv-tree__meta {
-  padding: 0 0.6rem 0.3rem;
+.dv-tree__filter::-webkit-search-cancel-button {
+  appearance: none;
+}
+
+.dv-tree__status {
+  padding: 0 0.65rem 0.35rem;
   color: var(--dv-fg-faint);
+  font-size: 0.92em;
 }
 
 .dv-tree__list {
+  padding-bottom: 0.4rem;
   overflow-y: auto;
   overscroll-behavior: contain;
 }
 
-.dv-tree__row {
+.dv-tree__row,
+.dv-tree__dir {
+  --dv-depth: 0;
   display: grid;
-  grid-template-columns: 1.2rem minmax(0, 1fr) auto auto;
-  gap: 0.35rem;
   align-items: center;
   width: 100%;
   min-height: var(--dv-row-height);
-  padding: 0.1rem 0.6rem;
+  padding-left: calc(0.45rem + var(--dv-depth) * var(--dv-indent));
   text-align: left;
 }
 
-.dv-tree__row:hover {
+.dv-tree__row {
+  grid-template-columns: auto auto minmax(0, 1fr) auto auto auto;
+  gap: 0.25rem;
+  padding-right: 0;
+}
+
+.dv-tree__row .dv-tree__name {
+  margin-left: 0.1rem;
+}
+
+.dv-tree__dir {
+  grid-template-columns: auto auto minmax(0, 1fr);
+  gap: 0.25rem;
+  padding-right: 0.65rem;
+  color: var(--dv-fg-muted);
+}
+
+/* Keeps file glyphs in the same column as folder glyphs, past the chevron. */
+.dv-tree__rail {
+  width: 1em;
+}
+
+.dv-tree__row:hover,
+.dv-tree__dir:hover {
   background: var(--dv-bg-hover);
 }
 
 .dv-tree__row[aria-current='true'] {
   background: var(--dv-bg-active);
+  box-shadow: inset 2px 0 0 var(--dv-accent);
 }
 
-.dv-tree__path {
+.dv-tree__row[aria-current='true'] .dv-tree__name {
+  color: var(--dv-fg);
+  font-weight: 600;
+}
+
+.dv-tree__chevron {
+  color: var(--dv-fg-faint);
+  transition: transform 120ms ease;
+}
+
+.dv-tree__dir[aria-expanded='true'] .dv-tree__chevron {
+  transform: rotate(90deg);
+}
+
+.dv-tree__glyph-slot {
+  display: grid;
+  place-items: center;
+  color: var(--dv-fg-faint);
+}
+
+.dv-tree__glyph {
+  color: var(--dv-fg-faint);
+}
+
+.dv-tree__label {
   min-width: 0;
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
 }
 
-.dv-tree__dir {
-  color: var(--dv-fg-faint);
-}
-
 .dv-tree__name {
-  color: var(--dv-fg);
+  min-width: 0;
+  overflow: hidden;
+  color: var(--dv-fg-muted);
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .dv-tree__counts {
   display: flex;
   gap: 0.3rem;
+  margin-left: 0.4rem;
+  font-size: 0.88em;
   font-variant-numeric: tabular-nums;
 }
 
@@ -262,11 +489,13 @@ body {
 .dv-badge {
   display: grid;
   place-items: center;
-  width: 1.2rem;
-  height: 1.2rem;
+  width: 1.15rem;
+  height: 1.15rem;
+  margin-left: 0.35rem;
   color: var(--dv-base);
-  font-size: 0.8em;
-  border-radius: var(--dv-radius);
+  font-size: 0.75em;
+  font-weight: 700;
+  border-radius: var(--dv-radius) 0 0 var(--dv-radius);
   background: var(--dv-fg-faint);
 }
 
@@ -307,8 +536,15 @@ body {
   display: flex;
   gap: 0.75rem;
   align-items: center;
-  padding: 0.2rem 0.6rem;
+  padding: 0.2rem 0.7rem;
   color: var(--dv-fg-muted);
+  font-size: 0.95em;
+}
+
+.dv-status__counts {
+  display: flex;
+  gap: 0.35rem;
+  font-variant-numeric: tabular-nums;
 }
 
 .dv-status__spacer {

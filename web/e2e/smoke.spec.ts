@@ -4,6 +4,28 @@ import { COMMENTS_PATH } from '../playwright.config';
 
 const firstFileRow = (page: Page) => page.locator('.dv-tree__row').first();
 
+/*
+ * These run in the page, so they carry no closure — each one re-collects the
+ * spans. They scan every rendered file rather than just the first, because
+ * whichever file leads the diff may be a lock file or another blob shiki has no
+ * grammar for.
+ */
+const countTokenSpans = (): number =>
+  [...document.querySelectorAll('diffs-container')]
+    .flatMap((container) => [
+      ...(container.shadowRoot?.querySelectorAll('[data-line] span') ?? []),
+    ])
+    .filter((span) => (span.getAttribute('style') ?? '').includes('--diffs-token')).length;
+
+const collectTokenStyles = (): string =>
+  [...document.querySelectorAll('diffs-container')]
+    .flatMap((container) => [
+      ...(container.shadowRoot?.querySelectorAll('[data-line] span') ?? []),
+    ])
+    .map((span) => span.getAttribute('style') ?? '')
+    .join(' ')
+    .toUpperCase();
+
 const waitForDiff = async (page: Page) => {
   await expect(page.locator('diffs-container').first()).toBeVisible();
   await expect(page.locator('.dv-tree__row').first()).toBeVisible();
@@ -13,6 +35,24 @@ const openFirstFile = async (page: Page) => {
   await waitForDiff(page);
   await firstFileRow(page).click();
   return (await firstFileRow(page).locator('.dv-tree__name').textContent()) ?? '';
+};
+
+/**
+ * Scrolls a file shiki can actually tokenize into view. The diff leads with
+ * whatever git lists first, which is often a lock file with no grammar, and the
+ * viewer only renders what is on screen.
+ */
+const openHighlightableFile = async (page: Page) => {
+  await waitForDiff(page);
+  const row = page
+    .locator('.dv-tree__row')
+    .filter({ has: page.locator('.dv-tree__name', { hasText: /\.(ts|go|css|md)$/ }) })
+    .first();
+  await expect(row).toBeVisible();
+  await row.click();
+  await expect
+    .poll(() => page.evaluate(countTokenSpans), { timeout: 15_000 })
+    .toBeGreaterThan(0);
 };
 
 test.beforeEach(async ({ page }) => {
@@ -25,25 +65,14 @@ test('renders a real diff with highlighted lines', async ({ page }) => {
   expect(await page.locator('diffs-container').count()).toBeGreaterThan(0);
   expect(await page.locator('diffs-container [data-line]').count()).toBeGreaterThan(0);
 
-  await expect
-    .poll(
-      () =>
-        page.evaluate(() => {
-          const root = document.querySelector('diffs-container')?.shadowRoot;
-          return [...(root?.querySelectorAll('[data-line] span') ?? [])].filter((s) =>
-            (s.getAttribute('style') ?? '').includes('--diffs-token'),
-          ).length;
-        }),
-      { timeout: 15_000 },
-    )
-    .toBeGreaterThan(0);
+  await openHighlightableFile(page);
 
   const changed = page.locator('diffs-container [data-line-type="change-addition"]');
   expect(await changed.count()).toBeGreaterThan(0);
 });
 
 test('paints the code surface with catppuccin, not the library default', async ({ page }) => {
-  await waitForDiff(page);
+  await openHighlightableFile(page);
 
   const themeCss = await page.evaluate(() => {
     const root = document.querySelector('diffs-container')?.shadowRoot;
@@ -54,16 +83,9 @@ test('paints the code surface with catppuccin, not the library default', async (
   expect(themeCss).toContain('#cdd6f4');
   expect(themeCss).toContain('#a6e3a1');
   expect(themeCss).not.toContain('#0a0a0a');
-
-  const tokenColors = await page.evaluate(() => {
-    const root = document.querySelector('diffs-container')?.shadowRoot;
-    return [...(root?.querySelectorAll('[data-line] span') ?? [])]
-      .map((s) => s.getAttribute('style') ?? '')
-      .join(' ')
-      .toUpperCase();
-  });
-
-  expect(tokenColors).toMatch(/#89B4FA|#A6E3A1|#FAB387|#F38BA8|#CBA6F7/);
+  expect(await page.evaluate(collectTokenStyles)).toMatch(
+    /#89B4FA|#A6E3A1|#FAB387|#F38BA8|#CBA6F7/,
+  );
 });
 
 test('switches theme across chrome and code surface', async ({ page }) => {

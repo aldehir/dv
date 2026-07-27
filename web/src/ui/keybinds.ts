@@ -17,6 +17,7 @@ export const KEYBINDS: readonly KeybindDescription[] = [
   { keys: 'c', label: 'Comment on the current selection' },
   { keys: 'n / p', label: 'Next / previous comment' },
   { keys: 'g', label: 'Toggle the comment inbox' },
+  { keys: 'b', label: 'Toggle the file tree' },
   { keys: '?', label: 'Toggle this help' },
   { keys: 'Esc', label: 'Dismiss overlays' },
 ];
@@ -71,6 +72,9 @@ export const createKeybinds = ({
         return true;
       case 'g':
         bus.emit('panel:toggle');
+        return true;
+      case 'b':
+        bus.emit('sidebar:toggle');
         return true;
       case '?':
         bus.emit('help:toggle');

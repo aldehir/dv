@@ -1,13 +1,12 @@
 import type { StreamState } from '../api/sse';
-import type { Totals } from '../api/types';
+import type { FileEntry } from '../api/types';
 import type { Component } from '../core/component';
 import { createDisposer } from '../core/component';
 import { el } from '../core/dom';
 import type { AppState, AppStore, LineSelection } from '../core/store';
 
 export interface StatusBarProps {
-  totals: Totals | null;
-  selectedPath: string | null;
+  file: FileEntry | null;
   selection: LineSelection | null;
   stream: StreamState;
   notice: string | null;
@@ -37,9 +36,7 @@ const selectionSummary = (selection: LineSelection | null): string => {
 };
 
 export const statusBarProps = (state: AppState): StatusBarProps => ({
-  totals: state.manifest?.totals ?? null,
-  selectedPath:
-    state.manifest?.files.find((file) => file.id === state.selectedFile)?.path ?? null,
+  file: state.manifest?.files.find((entry) => entry.id === state.selectedFile) ?? null,
   selection: state.selection,
   stream: state.stream,
   notice: state.notice,
@@ -50,9 +47,12 @@ export const createStatusBar = ({
 }: StatusBarDeps): Component<StatusBarProps> => {
   const disposer = createDisposer();
 
-  const counts = el('span', { class: 'dv-status__counts' });
-  const file = el('span', { class: 'dv-status__file' });
-  const selection = el('span', { class: 'dv-status__selection' });
+  const path = el('span', { class: 'dv-status__file' });
+  const counts = el('span', { class: 'dv-status__counts', hidden: true });
+  const additions = el('span', { class: 'dv-count--add' });
+  const deletions = el('span', { class: 'dv-count--del' });
+  counts.append(additions, deletions);
+  const selection = el('span', { class: 'dv-status__selection dv-mono' });
   const notice = el('span', { class: 'dv-status__notice', hidden: true });
   const dot = el('span', { class: 'dv-status__dot' });
   const streamLabel = el('span', { class: 'dv-status__stream-label' });
@@ -60,8 +60,8 @@ export const createStatusBar = ({
   const root = el(
     'div',
     { class: 'dv-status' },
+    path,
     counts,
-    file,
     el('span', { class: 'dv-status__spacer' }),
     notice,
     selection,
@@ -69,11 +69,11 @@ export const createStatusBar = ({
   );
 
   const update = (props: StatusBarProps): void => {
-    const totals = props.totals;
-    counts.textContent = totals
-      ? `${totals.files} files +${totals.additions} -${totals.deletions}`
-      : 'no diff';
-    file.textContent = props.selectedPath ?? '';
+    const file = props.file;
+    path.textContent = file?.path ?? 'no file selected';
+    counts.hidden = file === null;
+    additions.textContent = `+${file?.additions ?? 0}`;
+    deletions.textContent = `-${file?.deletions ?? 0}`;
     selection.textContent = selectionSummary(props.selection);
     notice.hidden = props.notice === null;
     notice.textContent = props.notice ?? '';

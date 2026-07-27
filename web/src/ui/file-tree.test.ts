@@ -44,6 +44,12 @@ const rows = (tree: { el: HTMLElement }): HTMLElement[] =>
 const visibleRows = (tree: { el: HTMLElement }): HTMLElement[] =>
   rows(tree).filter((row) => row.parentElement?.hidden !== true);
 
+const dirs = (tree: { el: HTMLElement }): HTMLElement[] =>
+  [...tree.el.querySelectorAll<HTMLElement>('[data-dir-path]')];
+
+const visibleDirs = (tree: { el: HTMLElement }): HTMLElement[] =>
+  dirs(tree).filter((row) => row.parentElement?.hidden !== true);
+
 describe('createFileTree', () => {
   it('renders one row per manifest file with status, counts and escaped paths', () => {
     const { tree } = setup();
@@ -52,11 +58,61 @@ describe('createFileTree', () => {
     const first = rows(tree)[0];
     expect(first?.dataset.fileId).toBe('f1');
     expect(first?.querySelector('.dv-badge')?.textContent).toBe('M');
-    expect(first?.querySelector('.dv-tree__dir')?.textContent).toBe('internal/gitx/');
     expect(first?.querySelector('.dv-tree__name')?.textContent).toBe('blob.go');
+    expect(first?.title).toBe('internal/gitx/blob.go');
     expect(first?.querySelector('.dv-count--add')?.textContent).toBe('+3');
     expect(first?.querySelector('.dv-count--del')?.textContent).toBe('-1');
     expect(tree.el.querySelector('.dv-tree__meta')?.textContent).toBe('3 of 3 files');
+    tree.destroy();
+  });
+
+  it('nests files under compacted directory rows in manifest order', () => {
+    const { tree } = setup();
+
+    expect(dirs(tree).map((dir) => dir.dataset.dirPath)).toEqual([
+      'internal/gitx',
+      'web/src',
+    ]);
+    expect(dirs(tree).map((dir) => dir.querySelector('.dv-tree__label')?.textContent)).toEqual(
+      ['internal/gitx', 'web/src'],
+    );
+    expect(dirs(tree).map((dir) => dir.getAttribute('aria-expanded'))).toEqual([
+      'true',
+      'true',
+    ]);
+
+    const order = [...tree.el.querySelectorAll<HTMLElement>('[data-file-id], [data-dir-path]')];
+    expect(order.map((row) => row.dataset.dirPath ?? row.dataset.fileId)).toEqual([
+      'internal/gitx',
+      'f1',
+      'web/src',
+      'f2',
+      'f3',
+    ]);
+    tree.destroy();
+  });
+
+  it('collapses a directory on click and re-expands it when a child is selected', () => {
+    const { store, bus, tree } = setup();
+    const gitx = dirs(tree)[0];
+
+    gitx?.click();
+    expect(gitx?.getAttribute('aria-expanded')).toBe('false');
+    expect(visibleRows(tree).map((row) => row.dataset.fileId)).toEqual(['f2', 'f3']);
+
+    bus.emit('file:step', { delta: 1 });
+    expect(store.get().selectedFile).toBe('f1');
+    expect(gitx?.getAttribute('aria-expanded')).toBe('true');
+    expect(visibleRows(tree).map((row) => row.dataset.fileId)).toEqual(['f1', 'f2', 'f3']);
+    tree.destroy();
+  });
+
+  it('hides directories with no matching descendant while filtering', () => {
+    const { store, tree } = setup();
+    store.set({ filter: 'blob' });
+
+    expect(visibleDirs(tree).map((dir) => dir.dataset.dirPath)).toEqual(['internal/gitx']);
+    expect(visibleRows(tree).map((row) => row.dataset.fileId)).toEqual(['f1']);
     tree.destroy();
   });
 

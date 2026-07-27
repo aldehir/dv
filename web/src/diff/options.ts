@@ -14,6 +14,16 @@ export const LAYOUT: CodeViewLayout = { paddingTop: 12, paddingBottom: 48, gap: 
 export const EXPANSION_LINE_COUNT = 20;
 export const HUNK_SEPARATORS = 'metadata' as const;
 
+/**
+ * The library reveals per-file horizontal scrollbars on hover. Keep that, but
+ * tint the thumb with the chrome's token so it matches the flavor.
+ */
+export const SCROLLBAR_CSS = `
+:host(:hover) [data-code]::-webkit-scrollbar-thumb {
+  background-color: var(--dv-scroll-thumb);
+}
+`;
+
 export type AnnotationRenderer = (
   annotation: ThreadAnnotation | ThreadLineAnnotation,
 ) => HTMLElement | undefined;
@@ -45,6 +55,7 @@ export const buildOptions = (
   hunkSeparators: HUNK_SEPARATORS,
   layout: LAYOUT,
   itemMetrics: metrics,
+  unsafeCSS: SCROLLBAR_CSS,
   __devOnlyValidateItemHeights: import.meta.env.DEV,
   onSelectedLinesChange(selection: CodeViewLineSelection | null) {
     store.set({ selection, selectedFile: selection?.id ?? store.get().selectedFile });

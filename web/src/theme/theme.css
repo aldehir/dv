@@ -2,7 +2,8 @@
 
 :root {
   --diffs-font-family: 'Victor Mono Variable', ui-monospace, SFMono-Regular, monospace;
-  --diffs-header-font-family: 'Victor Mono Variable', ui-monospace, SFMono-Regular, monospace;
+  --diffs-header-font-family: 'Inter Variable', system-ui, -apple-system, 'Segoe UI',
+    sans-serif;
   --diffs-font-size: 13px;
   --diffs-line-height: 20px;
   --diffs-tab-size: 4;
@@ -142,6 +143,8 @@
   --dv-modified: var(--dv-blue);
   --dv-renamed: var(--dv-peach);
   --dv-warning: var(--dv-yellow);
+  --dv-scroll-thumb: var(--dv-surface2);
+  --dv-scroll-thumb-hover: var(--dv-overlay0);
   --diffs-addition-color-override: var(--dv-green);
   --diffs-deletion-color-override: var(--dv-red);
   --diffs-modified-color-override: var(--dv-blue);

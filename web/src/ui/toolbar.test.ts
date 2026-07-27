@@ -20,10 +20,8 @@ const setup = () => {
   return { store, bus, toolbar };
 };
 
-const button = (toolbar: { el: HTMLElement }, label: string): HTMLButtonElement => {
-  const found = [...toolbar.el.querySelectorAll<HTMLButtonElement>('button')].find(
-    (candidate) => candidate.textContent === label,
-  );
+const labelled = (toolbar: { el: HTMLElement }, label: string): HTMLButtonElement => {
+  const found = toolbar.el.querySelector<HTMLButtonElement>(`[aria-label="${label}"]`);
   if (!found) throw new Error(`no ${label} button`);
   return found;
 };
@@ -46,75 +44,42 @@ describe('createToolbar', () => {
     toolbar.destroy();
   });
 
-  it('reflects and drives the view mode and wrap flags', () => {
-    const { store, toolbar } = setup();
-    expect(button(toolbar, 'split').getAttribute('aria-pressed')).toBe('true');
-
-    button(toolbar, 'unified').click();
-    expect(store.get().view).toBe('unified');
-    expect(button(toolbar, 'unified').getAttribute('aria-pressed')).toBe('true');
-    expect(button(toolbar, 'split').getAttribute('aria-pressed')).toBe('false');
-
-    button(toolbar, 'wrap').click();
-    expect(store.get().wrap).toBe(true);
-    expect(button(toolbar, 'wrap').getAttribute('aria-pressed')).toBe('true');
-    toolbar.destroy();
-  });
-
-  it('offers every flavor plus auto and emits theme:set', () => {
-    const { bus, toolbar } = setup();
-    const emitted = vi.fn();
-    bus.on('theme:set', emitted);
-
-    const select = toolbar.el.querySelector<HTMLSelectElement>('.dv-select');
-    expect([...(select?.options ?? [])].map((option) => option.value)).toEqual([
-      'latte',
-      'frappe',
-      'macchiato',
-      'mocha',
-      'auto',
-    ]);
-
-    if (select) {
-      select.value = 'latte';
-      select.dispatchEvent(new Event('change'));
-    }
-    expect(emitted).toHaveBeenCalledWith('latte');
-    toolbar.destroy();
-  });
-
-  it('hides the comment toggle until comments are enabled', () => {
+  it('toggles the sidebar and mirrors its state', () => {
     const { store, bus, toolbar } = setup();
     const toggled = vi.fn();
-    bus.on('panel:toggle', toggled);
+    bus.on('sidebar:toggle', toggled);
 
-    expect(button(toolbar, 'comments').hidden).toBe(true);
-    store.set({ commentsEnabled: true });
-    expect(button(toolbar, 'comments').hidden).toBe(false);
+    const button = labelled(toolbar, 'Toggle the file tree');
+    expect(button.getAttribute('aria-pressed')).toBe('true');
 
-    button(toolbar, 'comments').click();
+    button.click();
+    expect(toggled).toHaveBeenCalledTimes(1);
+
+    store.set({ sidebarVisible: false });
+    expect(button.getAttribute('aria-pressed')).toBe('false');
+    toolbar.destroy();
+  });
+
+  it('opens the keyboard help', () => {
+    const { bus, toolbar } = setup();
+    const toggled = vi.fn();
+    bus.on('help:toggle', toggled);
+
+    labelled(toolbar, 'Keyboard shortcuts').click();
     expect(toggled).toHaveBeenCalledTimes(1);
     toolbar.destroy();
   });
 
   it('drops every listener and subscription on destroy', () => {
     const { store, bus, toolbar } = setup();
-    const emitted = vi.fn();
-    bus.on('theme:set', emitted);
+    const toggled = vi.fn();
+    bus.on('help:toggle', toggled);
     toolbar.destroy();
 
-    button(toolbar, 'unified').click();
-    button(toolbar, 'wrap').click();
-    const select = toolbar.el.querySelector<HTMLSelectElement>('.dv-select');
-    if (select) {
-      select.value = 'mocha';
-      select.dispatchEvent(new Event('change'));
-    }
+    labelled(toolbar, 'Keyboard shortcuts').click();
     store.set({ manifest: { files: [], totals: { files: 9, additions: 0, deletions: 0 } } });
 
-    expect(store.get().view).toBe('split');
-    expect(store.get().wrap).toBe(false);
-    expect(emitted).not.toHaveBeenCalled();
+    expect(toggled).not.toHaveBeenCalled();
     expect(toolbar.el.querySelector('.dv-count--files')?.textContent).toBe('0 files');
   });
 });
