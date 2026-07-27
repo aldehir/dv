@@ -110,8 +110,8 @@ samp,
   background: var(--dv-bg-sunken);
 }
 
-/* The rail is a real gutter rather than an overlay, so it never covers the
-   diff's own scrollbar. Hidden, it collapses to nothing. */
+/* The rail is a real gutter rather than an overlay, so it sits where the diff's
+   own scrollbar would. Hidden, it collapses to nothing. */
 .dv-shell__main {
   position: relative;
   display: grid;
@@ -125,6 +125,16 @@ samp,
   min-width: 0;
   height: 100%;
   overflow: auto;
+}
+
+/* Two thumbs tracking the same scroll is one too many: while the rail is up it
+   is the scrollbar, so the native one steps aside. */
+.dv-shell__main:has(.dv-rail:not([hidden])) .dv-shell__mount {
+  scrollbar-width: none;
+}
+
+.dv-shell__main:has(.dv-rail:not([hidden])) .dv-shell__mount::-webkit-scrollbar {
+  display: none;
 }
 
 .dv-shell__placeholder {
@@ -158,18 +168,30 @@ samp,
   display: none;
 }
 
-/* Change minimap: one tick per hunk in the whole diff, hairlines at file
-   boundaries, a box tracking the viewport. */
+/* Change minimap and scrollbar in one: a tick per hunk in the whole diff,
+   hairlines at file boundaries, and a box you drag to scroll. */
 .dv-rail {
   position: relative;
   width: var(--dv-rail-width);
   border-left: 1px solid var(--dv-border);
   background: var(--dv-bg-sunken);
+  overflow: hidden;
+  user-select: none;
 }
 
+/* Held, the whole rail reads as grabbed: the box trails the pointer and the
+   track under it is not somewhere a new grab can start. */
+.dv-rail[data-dragging],
+.dv-rail[data-dragging] .dv-rail__view {
+  cursor: grabbing;
+}
+
+/* Ticks paint over the box but only the ticks themselves take the pointer, so
+   the box underneath stays grabbable everywhere else. */
 .dv-rail__ticks {
   position: absolute;
   inset: 0;
+  pointer-events: none;
 }
 
 .dv-rail__seam {
@@ -189,6 +211,8 @@ samp,
   height: 9px;
   margin-top: -4px;
   padding: 3px 2px;
+  pointer-events: auto;
+  cursor: pointer;
 }
 
 .dv-rail__tick::after {
@@ -225,7 +249,7 @@ samp,
   border: 1px solid var(--dv-accent);
   border-radius: 2px;
   background: color-mix(in srgb, var(--dv-accent) 22%, transparent);
-  pointer-events: none;
+  cursor: grab;
 }
 
 .dv-toolbar {

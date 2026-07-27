@@ -496,6 +496,22 @@ describe('createViewer', () => {
     harness.viewer.destroy();
   });
 
+  it('scrolls to a fraction of the scroll height, and no further', () => {
+    const harness = bench();
+    vi.spyOn(harness.view(), 'getScrollHeight').mockReturnValue(1000);
+    const scrollTo = vi.spyOn(harness.view(), 'scrollTo');
+
+    harness.viewer.scrollToOffset(0.25);
+    expect(scrollTo).toHaveBeenLastCalledWith({ type: 'position', position: 250 });
+
+    harness.viewer.scrollToOffset(1.4);
+    expect(scrollTo).toHaveBeenLastCalledWith({ type: 'position', position: 1000 });
+
+    harness.viewer.scrollToOffset(-0.2);
+    expect(scrollTo).toHaveBeenLastCalledWith({ type: 'position', position: 0 });
+    harness.viewer.destroy();
+  });
+
   it('reports which items it holds', () => {
     const harness = bench();
     expect(harness.viewer.has('f1')).toBe(false);

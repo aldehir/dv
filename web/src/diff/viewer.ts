@@ -77,6 +77,7 @@ export interface Viewer extends Disposable {
   hunks(): HunkMark[];
   jumpToHunk(mark: HunkMark): void;
   viewport(): Viewport;
+  scrollToOffset(offset: number): void;
 }
 
 const workerManager = (
@@ -376,6 +377,13 @@ export const createViewer = ({
     return { offset: view.getScrollTop() / total, extent: Math.min(height / total, 1) };
   };
 
+  /** The inverse of `viewport`: put the top of the view at this fraction. */
+  const scrollToOffset = (offset: number): void => {
+    const total = view.getScrollHeight();
+    if (total <= 0) return;
+    view.scrollTo({ type: 'position', position: Math.min(Math.max(offset, 0), 1) * total });
+  };
+
   const revealThread = (thread: Thread): void => {
     if (thread.stale || thread.lineNumber === 0) {
       revealFile(thread.fileId);
@@ -456,6 +464,7 @@ export const createViewer = ({
     hunks,
     jumpToHunk,
     viewport,
+    scrollToOffset,
     destroy() {
       disposer.dispose();
       view.cleanUp();

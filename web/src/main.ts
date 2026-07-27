@@ -46,7 +46,7 @@ const help = createLazyOverlay(shell.overlays, () =>
 createThemeController(deps).start();
 createKeybinds(deps);
 createRouter(deps);
-shell.main.appendChild(createRail({ ...deps, comments, viewer }).el);
+shell.main.appendChild(createRail({ ...deps, comments, viewer, scroller: root }).el);
 shell.panel.replaceChildren(createInbox({ ...deps, comments, viewer }).el);
 
 bus.on('help:toggle', help.toggle);

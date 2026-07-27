@@ -26,6 +26,17 @@ const mark = (
 /** The rail only ever reads the payload as a redraw signal. */
 const payload = { id: 'f1' } as FilePayload;
 
+/** jsdom lays nothing out, so the rail is told what its own box measures. */
+const TRACK = 400;
+
+const rect = (top: number, height: number): DOMRect =>
+  ({ top, height, bottom: top + height }) as DOMRect;
+
+/** jsdom has no PointerEvent; the rail only ever reads the mouse half of one. */
+const point = (type: string, clientY: number, target: EventTarget): void => {
+  target.dispatchEvent(new MouseEvent(type, { clientY, bubbles: true, cancelable: true }));
+};
+
 const setup = () => {
   const store = createStore(createInitialState());
   const bus = createBus();
@@ -34,10 +45,12 @@ const setup = () => {
   let port: Viewport = { offset: 0, extent: 0.5 };
 
   const jumpToHunk = vi.fn();
+  const scrollToOffset = vi.fn();
   const viewer = {
     hunks: () => marks,
     viewport: () => port,
     jumpToHunk,
+    scrollToOffset,
   } as unknown as Viewer;
 
   const comments = {
@@ -47,13 +60,22 @@ const setup = () => {
     },
   } as unknown as CommentsStore;
 
-  const rail = createRail({ store, bus, comments, viewer });
+  const scroller = document.createElement('div');
+  const rail = createRail({ store, bus, comments, viewer, scroller });
 
   return {
     store,
     bus,
     rail,
+    scroller,
     jumpToHunk,
+    scrollToOffset,
+    /** Stages the layout the pointer is aimed at: a track of TRACK px from 0. */
+    measure() {
+      rail.el.getBoundingClientRect = () => rect(0, TRACK);
+      const box = rail.el.querySelector<HTMLElement>('.dv-rail__view');
+      if (box) box.getBoundingClientRect = () => rect(port.offset * TRACK, port.extent * TRACK);
+    },
     /** Stages what the viewer reports; nothing is drawn until a trigger fires. */
     stage(next: HunkMark[], viewport?: Viewport) {
       marks = next;
@@ -141,6 +163,101 @@ describe('createRail', () => {
     expect(it0.box()?.style.top).toBe('75%');
     expect(it0.box()?.style.height).toBe('20%');
     it0.rail.destroy();
+  });
+
+  it('scrolls with the box the pointer drags, holding where it took hold', () => {
+    const it0 = setup();
+    it0.draw([mark('f1', 0, 0)], { offset: 0.25, extent: 0.5 });
+    it0.measure();
+
+    // Held 20px down a box that starts at 100px, then dragged to 150px.
+    point('pointerdown', 120, it0.rail.el);
+    expect(it0.scrollToOffset).not.toHaveBeenCalled();
+
+    point('pointermove', 170, window);
+    expect(it0.scrollToOffset).toHaveBeenLastCalledWith(0.375);
+
+    point('pointerup', 170, window);
+    point('pointermove', 300, window);
+    expect(it0.scrollToOffset).toHaveBeenCalledTimes(1);
+    it0.rail.destroy();
+  });
+
+  it('sends the box to a press on the track, then drags from there', () => {
+    const it0 = setup();
+    it0.draw([mark('f1', 0, 0)], { offset: 0, extent: 0.25 });
+    it0.measure();
+
+    // A press at 300px centers a 100px box on it: top 250px of a 400px track.
+    point('pointerdown', 300, it0.rail.el);
+    expect(it0.scrollToOffset).toHaveBeenLastCalledWith(0.625);
+
+    point('pointermove', 340, window);
+    expect(it0.scrollToOffset).toHaveBeenLastCalledWith(0.725);
+    point('pointerup', 340, window);
+    it0.rail.destroy();
+  });
+
+  it('leaves a press on a tick to the jump the tick already makes', () => {
+    const it0 = setup();
+    const target = mark('f1', 1, 0.5);
+    it0.draw([mark('f1', 0, 0), target], { offset: 0, extent: 0.25 });
+    it0.measure();
+
+    const tick = it0.ticks()[1];
+    if (!tick) throw new Error('expected a tick to press');
+
+    point('pointerdown', 200, tick);
+    // Nothing the hand does holding still counts as a drag.
+    point('pointermove', 202, window);
+    point('pointerup', 202, window);
+    tick.click();
+
+    expect(it0.scrollToOffset).not.toHaveBeenCalled();
+    expect(it0.jumpToHunk).toHaveBeenCalledWith(target);
+    it0.rail.destroy();
+  });
+
+  it('drags off a tick the pointer only meant to take hold of', () => {
+    const it0 = setup();
+    const target = mark('f1', 1, 0.5);
+    it0.draw([mark('f1', 0, 0), target], { offset: 0.25, extent: 0.5 });
+    it0.measure();
+
+    const tick = it0.ticks()[1];
+    if (!tick) throw new Error('expected a tick to press');
+
+    // Held 100px into a box that starts at 100px, then dragged 60px down.
+    point('pointerdown', 200, tick);
+    point('pointermove', 260, window);
+    point('pointerup', 260, window);
+    tick.click();
+
+    expect(it0.scrollToOffset).toHaveBeenLastCalledWith(0.4);
+    expect(it0.jumpToHunk).not.toHaveBeenCalled();
+    it0.rail.destroy();
+  });
+
+  it('rolls the wheel over the rail into the diff', () => {
+    const it0 = setup();
+    it0.draw([mark('f1', 0, 0)]);
+
+    it0.rail.el.dispatchEvent(new WheelEvent('wheel', { deltaY: 120, cancelable: true }));
+
+    expect(it0.scroller.scrollTop).toBe(120);
+    it0.rail.destroy();
+  });
+
+  it('drops the drag it is holding when destroyed', () => {
+    const it0 = setup();
+    it0.draw([mark('f1', 0, 0)], { offset: 0.25, extent: 0.5 });
+    it0.measure();
+
+    point('pointerdown', 120, it0.rail.el);
+    it0.rail.destroy();
+
+    point('pointermove', 170, window);
+    expect(it0.scrollToOffset).not.toHaveBeenCalled();
   });
 
   it('redraws when payloads land, the view flips or cards resize the items', () => {
