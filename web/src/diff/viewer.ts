@@ -24,6 +24,12 @@ export interface ItemChange {
   collapsed?: boolean;
 }
 
+/**
+ * `center` for a jump the user asked for, `nearest` when the range is likely
+ * already on screen and moving the view would be jarring.
+ */
+export type RevealAlign = 'center' | 'nearest';
+
 export interface ViewerDeps {
   store: AppStore;
   bus: Bus;
@@ -37,7 +43,7 @@ export interface Viewer extends Disposable {
   updateItem(id: string, change: ItemChange): boolean;
   refreshAnnotations(): void;
   revealFile(id: string): void;
-  revealRange(id: string, range: LineRange): void;
+  revealRange(id: string, range: LineRange, align?: RevealAlign): void;
   revealThread(thread: Thread): void;
   stepHunk(delta: number): void;
 }
@@ -90,7 +96,7 @@ export const createViewer = ({
   const hunkCursor = new Map<string, number>();
   let metrics: VirtualFileMetrics = measureMetrics(root);
   let pendingFile: string | null = null;
-  let pendingRange: LineSelection | null = null;
+  let pendingRange: { selection: LineSelection; align: RevealAlign } | null = null;
 
   const renderAnnotation = (annotation: {
     metadata: Thread[];
@@ -156,21 +162,21 @@ export const createViewer = ({
     view.scrollTo({ type: 'item', id, align: 'start' });
   };
 
-  const revealRange = (id: string, range: LineRange): void => {
+  const revealRange = (id: string, range: LineRange, align: RevealAlign = 'center'): void => {
     if (!view.getItem(id)) {
-      pendingRange = { id, range };
+      pendingRange = { selection: { id, range }, align };
       return;
     }
     pendingRange = null;
     view.setSelectedLines({ id, range });
-    view.scrollTo({ type: 'range', id, range, align: 'center' });
+    view.scrollTo({ type: 'range', id, range, align });
   };
 
   const flushPending = (id: string): void => {
-    if (pendingRange?.id === id) {
+    if (pendingRange?.selection.id === id) {
       const target = pendingRange;
       pendingRange = null;
-      revealRange(target.id, target.range);
+      revealRange(target.selection.id, target.selection.range, target.align);
       return;
     }
     if (pendingFile === id) revealFile(id);

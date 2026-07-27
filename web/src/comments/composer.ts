@@ -66,9 +66,9 @@ export const createComposer = ({
     if (target?.key !== next.key) {
       target = next;
       input.value = comments.draft(next.key);
-      // Following the selection means the range is already on screen; re-centring
-      // it mid-drag would fight the pointer.
-      if (!following) viewer.revealRange(next.fileId, next.range);
+      // Composing starts from a range the user just picked, so scroll only when
+      // it sits off screen — re-centring under the pointer would be jarring.
+      if (!following) viewer.revealRange(next.fileId, next.range, 'nearest');
     }
     syncNotice();
   };
