@@ -1,3 +1,4 @@
+import type { FileDiffMetadata } from '@pierre/diffs';
 import { describe, expect, it } from 'vitest';
 import type { FilePayload } from '../api/types';
 import type { Thread, ThreadAnnotation } from '../comments/anchors';
@@ -198,6 +199,49 @@ describe('itemFor', () => {
   });
 });
 
+const OFFSET_PATCH = `diff --git a/src/a.ts b/src/a.ts
+index 1111111..2222222 100644
+--- a/src/a.ts
++++ b/src/a.ts
+@@ -4,4 +4,5 @@ const head = 1;
+ const context = 2;
+-const removed = 3;
++const added = 3;
++const extra = 4;
+ const tail = 5;
+ const last = 6;
+`;
+
+const OLD_LINES = [
+  'const head = 1;',
+  'const a = 1;',
+  'const b = 2;',
+  'const context = 2;',
+  'const removed = 3;',
+  'const tail = 5;',
+  'const last = 6;',
+  'const eof = 7;',
+];
+
+const NEW_LINES = [
+  'const head = 1;',
+  'const a = 1;',
+  'const b = 2;',
+  'const context = 2;',
+  'const added = 3;',
+  'const extra = 4;',
+  'const tail = 5;',
+  'const last = 6;',
+  'const eof = 7;',
+];
+
+const expanded = (): FileDiffMetadata => {
+  const full = payload({ patch: OFFSET_PATCH, oldLines: OLD_LINES, newLines: NEW_LINES });
+  const item = itemFor(full);
+  if (item.type !== 'diff') throw new Error('expected a diff item');
+  return item.fileDiff;
+};
+
 describe('attachFullContents', () => {
   it('is a no-op when expansion is unavailable', () => {
     const item = itemFor(payload());
@@ -206,6 +250,89 @@ describe('attachFullContents', () => {
     attachFullContents(item.fileDiff, payload({ oldLines: null, newLines: null }));
     expect(item.fileDiff.additionLines).toBe(before);
     expect(item.fileDiff.isPartial).toBe(true);
+  });
+
+  it('swaps in the whole file and marks the diff expandable', () => {
+    const fileDiff = expanded();
+    expect(fileDiff.isPartial).toBe(false);
+    expect(fileDiff.deletionLines).toEqual(OLD_LINES.map((line) => `${line}\n`));
+    expect(fileDiff.additionLines).toEqual(NEW_LINES.map((line) => `${line}\n`));
+  });
+
+  it('rebases hunk line indices onto the whole file', () => {
+    const hunk = expanded().hunks[0];
+    expect(hunk?.deletionLineIndex).toBe(hunk!.deletionStart - 1);
+    expect(hunk?.additionLineIndex).toBe(hunk!.additionStart - 1);
+  });
+
+  it('rebases the line indices inside each hunk content group', () => {
+    const hunk = expanded().hunks[0];
+    expect(
+      hunk?.hunkContent.map((content) => [
+        content.type,
+        content.deletionLineIndex,
+        content.additionLineIndex,
+      ]),
+    ).toEqual([
+      ['context', 3, 3],
+      ['change', 4, 4],
+      ['context', 5, 6],
+    ]);
+  });
+
+  it('indexes back to the same text the patch carried', () => {
+    const fileDiff = expanded();
+    const change = fileDiff.hunks[0]?.hunkContent[1];
+    expect(fileDiff.deletionLines[change!.deletionLineIndex]).toBe('const removed = 3;\n');
+    expect(fileDiff.additionLines[change!.additionLineIndex]).toBe('const added = 3;\n');
+  });
+
+  it('counts the context collapsed below the last hunk', () => {
+    const fileDiff = expanded();
+    expect(fileDiff.splitLineCount).toBe(NEW_LINES.length);
+    expect(fileDiff.unifiedLineCount).toBe(NEW_LINES.length + 1);
+  });
+
+  it('leaves an already-expanded diff alone when applied twice', () => {
+    const fileDiff = expanded();
+    const before = {
+      split: fileDiff.splitLineCount,
+      unified: fileDiff.unifiedLineCount,
+      deletion: fileDiff.hunks[0]?.deletionLineIndex,
+      addition: fileDiff.hunks[0]?.additionLineIndex,
+    };
+    attachFullContents(
+      fileDiff,
+      payload({ patch: OFFSET_PATCH, oldLines: OLD_LINES, newLines: NEW_LINES }),
+    );
+    expect(fileDiff.splitLineCount).toBe(before.split);
+    expect(fileDiff.unifiedLineCount).toBe(before.unified);
+    expect(fileDiff.hunks[0]?.deletionLineIndex).toBe(before.deletion);
+    expect(fileDiff.hunks[0]?.additionLineIndex).toBe(before.addition);
+  });
+
+  it('keeps a new file at the top of its addition lines', () => {
+    const newFilePatch = `diff --git a/src/new.ts b/src/new.ts
+new file mode 100644
+index 0000000..2222222
+--- /dev/null
++++ b/src/new.ts
+@@ -0,0 +1,2 @@
++const one = 1;
++const two = 2;
+`;
+    const item = itemFor(
+      payload({
+        patch: newFilePatch,
+        path: 'src/new.ts',
+        oldLines: [],
+        newLines: ['const one = 1;', 'const two = 2;'],
+      }),
+    );
+    if (item.type !== 'diff') throw new Error('expected a diff item');
+    expect(item.fileDiff.hunks[0]?.deletionLineIndex).toBe(0);
+    expect(item.fileDiff.hunks[0]?.additionLineIndex).toBe(0);
+    expect(item.fileDiff.splitLineCount).toBe(2);
   });
 });
 

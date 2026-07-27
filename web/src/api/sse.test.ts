@@ -125,6 +125,22 @@ describe('createSse', () => {
     expect(FakeSource.instances.length).toBe(1);
   });
 
+  it('stops retrying once the stream is stopped', () => {
+    const { client, states } = setup();
+    client.connect();
+    FakeSource.instances[0]?.fire('open');
+    client.stop();
+
+    expect(client.state()).toBe('done');
+    expect(states.at(-1)).toBe('done');
+    expect(FakeSource.instances[0]?.closed).toBe(true);
+
+    FakeSource.instances[0]?.fire('error');
+    vi.advanceTimersByTime(5000);
+    expect(FakeSource.instances.length).toBe(1);
+    client.destroy();
+  });
+
   it('ignores events from a superseded source', () => {
     const { client, files } = setup();
     client.connect();

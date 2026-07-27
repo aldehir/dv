@@ -336,7 +336,8 @@ body {
   background: var(--dv-fg-faint);
 }
 
-.dv-status__dot[data-state='open'] {
+.dv-status__dot[data-state='open'],
+.dv-status__dot[data-state='done'] {
   background: var(--dv-added);
 }
 

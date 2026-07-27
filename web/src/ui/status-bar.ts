@@ -22,6 +22,7 @@ const STREAM_LABELS: Record<StreamState, string> = {
   connecting: 'connecting',
   open: 'live',
   retrying: 'reconnecting',
+  done: 'loaded',
   closed: 'offline',
 };
 

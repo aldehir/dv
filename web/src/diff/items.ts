@@ -31,14 +31,41 @@ const parseFileDiff = (payload: FilePayload): FileDiffMetadata | null => {
   }
 };
 
+const rebaseHunks = (fileDiff: FileDiffMetadata): void => {
+  for (const hunk of fileDiff.hunks) {
+    const deletionShift = Math.max(hunk.deletionStart - 1, 0) - hunk.deletionLineIndex;
+    const additionShift = Math.max(hunk.additionStart - 1, 0) - hunk.additionLineIndex;
+    if (deletionShift === 0 && additionShift === 0) continue;
+    hunk.deletionLineIndex += deletionShift;
+    hunk.additionLineIndex += additionShift;
+    for (const content of hunk.hunkContent) {
+      content.deletionLineIndex += deletionShift;
+      content.additionLineIndex += additionShift;
+    }
+  }
+};
+
+const collapsedAfter = (fileDiff: FileDiffMetadata): number => {
+  const last = fileDiff.hunks.at(-1);
+  if (!last) return 0;
+  if (fileDiff.deletionLines.length === 0 || fileDiff.additionLines.length === 0) return 0;
+  const end = last.additionStart + last.additionCount - 1;
+  return Math.max(fileDiff.additionLines.length - end, 0);
+};
+
 export const attachFullContents = (
   fileDiff: FileDiffMetadata,
   payload: FilePayload,
 ): FileDiffMetadata => {
   if (payload.oldLines === null || payload.newLines === null) return fileDiff;
+  if (!fileDiff.isPartial) return fileDiff;
   fileDiff.deletionLines = normalizeLines(payload.oldLines);
   fileDiff.additionLines = normalizeLines(payload.newLines);
   fileDiff.isPartial = false;
+  rebaseHunks(fileDiff);
+  const trailing = collapsedAfter(fileDiff);
+  fileDiff.splitLineCount += trailing;
+  fileDiff.unifiedLineCount += trailing;
   return fileDiff;
 };
 

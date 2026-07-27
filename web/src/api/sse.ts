@@ -1,6 +1,12 @@
 import type { Disposable } from '../core/component';
 
-export type StreamState = 'idle' | 'connecting' | 'open' | 'retrying' | 'closed';
+export type StreamState =
+  | 'idle'
+  | 'connecting'
+  | 'open'
+  | 'retrying'
+  | 'done'
+  | 'closed';
 
 export interface SseSource {
   addEventListener(type: string, listener: (event: Event) => void): void;
@@ -21,6 +27,7 @@ export interface SseOptions {
 export interface SseClient extends Disposable {
   state(): StreamState;
   connect(): void;
+  stop(): void;
 }
 
 const defaultCreate = (url: string): SseSource => new EventSource(url);
@@ -110,6 +117,13 @@ export const createSse = ({
   return {
     state: () => state,
     connect,
+    stop() {
+      if (destroyed) return;
+      clearTimer();
+      closeSource();
+      attempt = 0;
+      setState('done');
+    },
     destroy() {
       destroyed = true;
       clearTimer();

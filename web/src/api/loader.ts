@@ -26,6 +26,9 @@ const describe = (error: unknown): string => {
   return error instanceof Error ? error.message : String(error);
 };
 
+const describeFailure = (failure: { error: string; detail: string }): string =>
+  failure.detail === '' ? failure.error : `${failure.error}: ${failure.detail}`;
+
 const parseJson = <T>(raw: string): T | null => {
   try {
     return JSON.parse(raw) as T;
@@ -87,6 +90,17 @@ export const createLoader = ({ client, store, bus }: LoaderDeps): Loader => {
         setFileState(payload.id, { status: 'loaded' });
         bus.emit('file:payload', payload);
       },
+      'file-error': (data) => {
+        const failure = parseJson<{ id: string; error: string }>(data);
+        if (!failure) return;
+        setFileState(failure.id, { status: 'error', error: failure.error });
+      },
+      fatal: (data) => {
+        const failure = parseJson<{ error: string; detail: string }>(data);
+        store.set({ notice: failure ? describeFailure(failure) : 'the diff stream failed' });
+        stream.stop();
+      },
+      done: () => stream.stop(),
     },
   });
 
