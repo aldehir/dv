@@ -23,7 +23,6 @@ describe('buildOptions', () => {
     expect(built.diffStyle).toBe('unified');
     expect(built.overflow).toBe('wrap');
     expect(built.theme).toBe('catppuccin-frappe');
-    expect(built.enableGutterUtility).toBe(true);
     expect(built.enableLineSelection).toBe(true);
     expect(built.expandUnchanged).toBe(true);
     expect(built.stickyHeaders).toBe(true);
@@ -43,8 +42,8 @@ describe('buildOptions', () => {
     expect(options().themeType).toBe('system');
   });
 
-  it('hides the gutter affordance when comments are disabled', () => {
-    expect(setup().options().enableGutterUtility).toBe(false);
+  it('never asks for the gutter affordance', () => {
+    expect(setup().options().enableGutterUtility).toBeUndefined();
   });
 
   it('writes the viewer selection into the store and onto the bus', () => {
@@ -68,15 +67,17 @@ describe('buildOptions', () => {
     expect(store.get().selectedFile).toBe('f2');
   });
 
-  it('turns a gutter click into a compose intent for the clicked item', () => {
-    const { bus, options } = setup();
-    const compose = vi.fn();
-    bus.on('comment:compose', compose);
-    const range = { start: 4, end: 4, side: 'additions' as const };
+  it('parks the draft box on a settled selection, not on every drag step', () => {
+    const { store, options } = setup();
+    const range = { start: 4, end: 6, side: 'additions' as const };
 
-    const handler = options().onGutterUtilityClick;
-    handler?.(range, { item: { id: 'f7' } } as never);
+    options().onSelectedLinesChange?.({ id: 'f7', range });
+    expect(store.get().composing).toBeNull();
 
-    expect(compose).toHaveBeenCalledWith({ fileId: 'f7', range });
+    options().onLineSelected?.(range, { item: { id: 'f7' } } as never);
+    expect(store.get().composing).toEqual({ id: 'f7', range });
+
+    options().onLineSelected?.(null, { item: { id: 'f7' } } as never);
+    expect(store.get().composing).toBeNull();
   });
 });

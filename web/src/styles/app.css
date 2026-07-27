@@ -669,6 +669,11 @@ samp,
   border-color: var(--dv-accent);
 }
 
+/* The draft is the active box whether or not it holds focus. */
+.dv-thread__card--draft {
+  border-color: var(--dv-accent);
+}
+
 /* Still worn by the inbox rows. */
 .dv-thread__badge {
   padding: 0 0.35rem;
@@ -684,6 +689,27 @@ samp,
   bottom: 0.35rem;
   display: flex;
   gap: 0.2rem;
+}
+
+/* A save failure has nowhere else to go while the draft is still open. */
+.dv-thread__actions--draft {
+  left: 0.7rem;
+  align-items: center;
+  justify-content: flex-end;
+  pointer-events: none;
+}
+
+.dv-thread__actions--draft > * {
+  pointer-events: auto;
+}
+
+.dv-thread__notice {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--dv-removed);
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .dv-thread__action {
@@ -712,73 +738,6 @@ samp,
 
 .dv-thread__input:focus-visible {
   outline: none;
-}
-
-.dv-composer {
-  position: fixed;
-  right: 1.25rem;
-  bottom: 2.25rem;
-  z-index: 9;
-  width: min(34rem, calc(100vw - 2.5rem));
-  color: var(--dv-fg);
-  background: var(--dv-bg-raised);
-  border: 1px solid var(--dv-accent);
-  border-radius: calc(var(--dv-radius) * 2);
-  box-shadow: 0 8px 24px color-mix(in srgb, var(--dv-crust) 60%, transparent);
-}
-
-/* The box is the textarea; the controls float over its bottom edge. */
-.dv-composer__input {
-  display: block;
-  width: 100%;
-  min-height: 9rem;
-  padding: 0.8rem 0.95rem 2.7rem;
-  color: var(--dv-fg);
-  font-family: inherit;
-  font-size: inherit;
-  background: transparent;
-  border: 0;
-  border-radius: inherit;
-  resize: none;
-}
-
-/* The panel's own accent border is the focus ring. */
-.dv-composer__input:focus-visible {
-  outline: none;
-}
-
-.dv-composer__bar {
-  position: absolute;
-  right: 0.55rem;
-  bottom: 0.5rem;
-  left: 0.95rem;
-  display: flex;
-  gap: 0.2rem;
-  align-items: center;
-  justify-content: flex-end;
-  pointer-events: none;
-}
-
-.dv-composer__bar > * {
-  pointer-events: auto;
-}
-
-/* Saving is the primary action here, so it carries the accent. */
-.dv-composer__save {
-  color: var(--dv-accent);
-}
-
-.dv-composer__cancel {
-  color: var(--dv-fg-muted);
-}
-
-.dv-composer__notice {
-  flex: 1 1 auto;
-  min-width: 0;
-  overflow: hidden;
-  color: var(--dv-removed);
-  white-space: nowrap;
-  text-overflow: ellipsis;
 }
 
 .dv-inbox {

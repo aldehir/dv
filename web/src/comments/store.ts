@@ -9,35 +9,26 @@ import type {
   PatchCommentRequest,
   Reply,
 } from '../api/types';
-import type { Bus, ComposeIntent } from '../core/bus';
+import type { Bus } from '../core/bus';
 import type { Disposable, Unsubscribe } from '../core/component';
 import { createDisposer } from '../core/component';
-import type { AppStore, LineRange } from '../core/store';
-import type { Thread } from './anchors';
-import { draftKeyFor, requestAnchorFor, sideOfRange, threadFor } from './anchors';
+import type { AppStore } from '../core/store';
+import type { Draft, Thread } from './anchors';
+import { requestAnchorFor, sideOfRange, threadFor } from './anchors';
 
 export const COMMENTS_STREAM_PATH = '/api/comments/stream';
 const PENDING_PREFIX = 'dv-pending-';
 const STREAM_EVENTS = ['comments', 'doc', 'message'] as const;
-
-export interface ComposeTarget {
-  fileId: string;
-  path: string;
-  range: LineRange;
-  key: string;
-}
 
 export interface CommentsStore extends Disposable {
   start(): void;
   refresh(): Promise<void>;
   threads(): readonly Thread[];
   threadsFor(fileId: string): readonly Thread[];
-  compose(): ComposeTarget | null;
-  setCompose(intent: ComposeIntent | null): void;
   draft(key: string): string;
   setDraft(key: string, body: string): void;
   error(): string | null;
-  create(target: ComposeTarget, body: string): Promise<Comment | null>;
+  create(draft: Draft, body: string): Promise<Comment | null>;
   update(id: string, patch: PatchCommentRequest): Promise<Comment | null>;
   remove(id: string): Promise<boolean>;
   reply(id: string, body: string): Promise<Reply | null>;
@@ -87,7 +78,6 @@ export const createCommentsStore = ({
   let optimistic = new Map<string, Comment>();
   let cached: readonly Thread[] | null = null;
   let etag = '';
-  let composing: ComposeTarget | null = null;
   let failure: string | null = null;
   let running = false;
   let watching = false;
@@ -232,32 +222,17 @@ export const createCommentsStore = ({
     refresh,
     threads,
     threadsFor: (fileId) => threads().filter((thread) => thread.fileId === fileId),
-    compose: () => composing,
-    setCompose(intent) {
-      if (!intent) {
-        composing = null;
-        notify();
-        return;
-      }
-      composing = {
-        fileId: intent.fileId,
-        path: pathFor(intent.fileId),
-        range: intent.range,
-        key: draftKeyFor(intent.fileId, intent.range),
-      };
-      notify();
-    },
     draft: (key) => drafts.get(key) ?? '',
     setDraft(key, body) {
       if (body === '') drafts.delete(key);
       else drafts.set(key, body);
     },
     error: () => failure,
-    async create(target, body) {
+    async create(draft, body) {
       pendingSeq += 1;
       const now = new Date().toISOString();
-      const anchor = requestAnchorFor(target.path, target.range);
-      const draft: Comment = {
+      const anchor = requestAnchorFor(pathFor(draft.fileId), draft.range);
+      const local: Comment = {
         id: `${PENDING_PREFIX}${pendingSeq}`,
         status: 'open',
         author: { name: 'you' },
@@ -267,7 +242,7 @@ export const createCommentsStore = ({
         anchor: {
           path: anchor.path,
           prevPath: null,
-          side: sideOfRange(target.range),
+          side: sideOfRange(draft.range),
           startLine: anchor.startLine,
           endLine: anchor.endLine,
           blobSha: '',
@@ -277,16 +252,16 @@ export const createCommentsStore = ({
         },
         replies: [],
       };
-      optimistic.set(draft.id, draft);
+      optimistic.set(local.id, local);
       failure = null;
       notify();
 
       try {
         const saved = track(await client.createComment({ anchor, body }));
-        optimistic.delete(draft.id);
-        drafts.delete(target.key);
+        optimistic.delete(local.id);
+        drafts.delete(draft.key);
         // Deleted while the post was in flight: drop the echo instead of resurrecting it.
-        if (abandoned.delete(draft.id)) {
+        if (abandoned.delete(local.id)) {
           await erase(saved.id);
           return null;
         }
@@ -294,8 +269,8 @@ export const createCommentsStore = ({
         bus.emit('comment:created', saved);
         return saved;
       } catch (error: unknown) {
-        optimistic.delete(draft.id);
-        abandoned.delete(draft.id);
+        optimistic.delete(local.id);
+        abandoned.delete(local.id);
         await recover(error);
         return null;
       }

@@ -14,7 +14,7 @@ export const KEYBINDS: readonly KeybindDescription[] = [
   { keys: '] / [', label: 'Next / previous hunk' },
   { keys: '/', label: 'Focus the file filter' },
   { keys: 't', label: 'Cycle Catppuccin flavor' },
-  { keys: 'c', label: 'Comment on the current selection' },
+  { keys: 'c', label: 'Write in the comment box for the selection' },
   { keys: 'n / p', label: 'Next / previous comment' },
   { keys: 'g', label: 'Toggle the comment inbox' },
   { keys: 'b', label: 'Toggle the file tree' },
@@ -35,10 +35,12 @@ export const createKeybinds = ({
 }: KeybindsDeps): Disposable => {
   const disposer = createDisposer();
 
-  const composeFromSelection = (): void => {
+  // The box is already there whenever a range is selected; `c` just moves into it.
+  const focusDraft = (): void => {
     const selection = store.get().selection;
     if (!selection) return;
-    bus.emit('comment:compose', { fileId: selection.id, range: selection.range });
+    store.set({ composing: selection });
+    bus.emit('draft:focus');
   };
 
   const handle = (event: KeyboardEvent): boolean => {
@@ -62,7 +64,7 @@ export const createKeybinds = ({
         bus.emit('theme:cycle');
         return true;
       case 'c':
-        composeFromSelection();
+        focusDraft();
         return true;
       case 'n':
         bus.emit('comment:step', { delta: 1 });

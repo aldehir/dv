@@ -2,10 +2,10 @@ import type { CodeViewLineSelection, VirtualFileMetrics } from '@pierre/diffs';
 import { CodeView } from '@pierre/diffs';
 import { getOrCreateWorkerPoolSingleton } from '@pierre/diffs/worker';
 import type { FilePayload } from '../api/types';
-import type { Thread, ThreadAnnotation } from '../comments/anchors';
-import { annotationSignature, annotationsFor, rangeFor } from '../comments/anchors';
+import type { Card, CardAnnotation, Draft, Thread } from '../comments/anchors';
+import { annotationSignature, annotationsFor, draftFor, rangeFor } from '../comments/anchors';
 import type { CommentsStore } from '../comments/store';
-import { createThreadList } from '../comments/thread';
+import { DRAFT_INPUT_CLASS, createCardList } from '../comments/thread';
 import type { Bus } from '../core/bus';
 import type { Disposable } from '../core/component';
 import { createDisposer } from '../core/component';
@@ -20,7 +20,7 @@ import { forwardWheel } from './wheel';
 const WORKER_POOL_SIZE = 4;
 
 export interface ItemChange {
-  annotations?: readonly ThreadAnnotation[];
+  annotations?: readonly CardAnnotation[];
   collapsed?: boolean;
 }
 
@@ -97,19 +97,35 @@ export const createViewer = ({
   let metrics: VirtualFileMetrics = measureMetrics(root);
   let pendingFile: string | null = null;
   let pendingRange: { selection: LineSelection; align: RevealAlign } | null = null;
+  let draftInput: HTMLTextAreaElement | null = null;
+  let focusWhenDrawn = false;
 
-  const renderAnnotation = (annotation: {
-    metadata: Thread[];
-  }): HTMLElement | undefined => {
+  const renderAnnotation = (annotation: { metadata: Card[] }): HTMLElement | undefined => {
     if (annotation.metadata.length === 0) return undefined;
-    return createThreadList(annotation.metadata, { bus, comments }).el;
+    const element = createCardList(annotation.metadata, { store, bus, comments }).el;
+    const input = element.querySelector<HTMLTextAreaElement>(`.${DRAFT_INPUT_CLASS}`);
+    if (input) {
+      draftInput = input;
+      if (focusWhenDrawn) {
+        focusWhenDrawn = false;
+        input.focus({ preventScroll: true });
+      }
+    }
+    return element;
   };
 
   const options = () => buildOptions(store.get(), { store, bus, metrics, renderAnnotation });
 
   const workers = workerManager(themeOptionFor(store.get().themePref));
-  const view = new CodeView<Thread[]>(options(), workers);
+  const view = new CodeView<Card[]>(options(), workers);
   view.setup(root);
+
+  /** The box the user is typing into, if the diff has that line on screen. */
+  const draftAt = (fileId: string): Draft | null => {
+    const { commentsEnabled, composing } = store.get();
+    if (!commentsEnabled || composing === null || composing.id !== fileId) return null;
+    return draftFor(fileId, composing.range);
+  };
 
   const applyOptions = (): void => {
     view.setOptions(options());
@@ -183,7 +199,7 @@ export const createViewer = ({
   };
 
   const add = (payload: FilePayload): void => {
-    const annotations = annotationsFor(comments.threadsFor(payload.id));
+    const annotations = annotationsFor(comments.threadsFor(payload.id), draftAt(payload.id));
     signatures.set(payload.id, annotationSignature(annotations));
     const next = itemFor(payload, annotations);
 
@@ -206,7 +222,7 @@ export const createViewer = ({
 
   const refreshAnnotations = (): void => {
     for (const item of [...items]) {
-      const annotations = annotationsFor(comments.threadsFor(item.id));
+      const annotations = annotationsFor(comments.threadsFor(item.id), draftAt(item.id));
       const signature = annotationSignature(annotations);
       if (signatures.get(item.id) === signature) continue;
       signatures.set(item.id, signature);
@@ -264,6 +280,13 @@ export const createViewer = ({
   );
   disposer.add(bus.on('hunk:step', ({ delta }) => stepHunk(delta)));
   disposer.add(
+    bus.on('draft:focus', () => {
+      // The box may not have been drawn yet when the range was just deep-linked.
+      if (draftInput?.isConnected === true) draftInput.focus({ preventScroll: true });
+      else focusWhenDrawn = true;
+    }),
+  );
+  disposer.add(
     bus.on('theme:changed', () => {
       applyOptions();
       view.onThemeChange();
@@ -271,7 +294,21 @@ export const createViewer = ({
   );
   disposer.add(store.subscribe('view', applyOptions));
   disposer.add(store.subscribe('wrap', applyOptions));
-  disposer.add(store.subscribe('commentsEnabled', applyOptions));
+  disposer.add(
+    store.subscribe('commentsEnabled', () => {
+      applyOptions();
+      refreshAnnotations();
+    }),
+  );
+  disposer.add(
+    store.subscribe('composing', (composing) => {
+      if (composing === null) {
+        draftInput = null;
+        focusWhenDrawn = false;
+      }
+      refreshAnnotations();
+    }),
+  );
   disposer.add(
     store.subscribe('selection', (selection) => {
       if (sameSelection(view.getSelectedLines(), selection)) return;

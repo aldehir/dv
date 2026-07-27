@@ -41,9 +41,6 @@ const viewer = createViewer({ ...deps, comments, root, loadFile: loader.loadFile
 const help = createLazyOverlay(shell.overlays, () =>
   import('./ui/help').then((module) => module.createHelp(deps)),
 );
-const composer = createLazyOverlay(shell.overlays, () =>
-  import('./comments/composer').then((m) => m.createComposer({ store, bus, comments, viewer })),
-);
 
 createThemeController(deps).start();
 createKeybinds(deps);
@@ -51,8 +48,7 @@ createRouter(deps);
 shell.panel.replaceChildren(createInbox({ ...deps, comments, viewer }).el);
 
 bus.on('help:toggle', help.toggle);
-bus.on('comment:compose', (i) => { comments.setCompose(i); composer.open(); });
-bus.on('overlay:dismiss', () => { help.close(); composer.close(); });
+bus.on('overlay:dismiss', () => { help.close(); store.set({ selection: null, composing: null }); });
 
 loader.start();
 comments.start();

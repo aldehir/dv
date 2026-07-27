@@ -1,10 +1,10 @@
 import type { CodeViewItem, FileDiffMetadata } from '@pierre/diffs';
 import { parsePatchFiles } from '@pierre/diffs';
 import type { FilePayload } from '../api/types';
-import type { Thread, ThreadAnnotation } from '../comments/anchors';
+import type { Card, CardAnnotation } from '../comments/anchors';
 import { lineAnnotationsFor } from '../comments/anchors';
 
-export type DiffItem = CodeViewItem<Thread[]>;
+export type DiffItem = CodeViewItem<Card[]>;
 
 export const CACHE_KEY_PREFIX = 'dv';
 
@@ -89,7 +89,7 @@ export const placeholderText = (payload: FilePayload): string => {
 
 export const placeholderItem = (
   payload: FilePayload,
-  annotations: readonly ThreadAnnotation[] = [],
+  annotations: readonly CardAnnotation[] = [],
 ): DiffItem => ({
   type: 'file',
   id: payload.id,
@@ -105,7 +105,7 @@ export const placeholderItem = (
 
 export const itemFor = (
   payload: FilePayload,
-  annotations: readonly ThreadAnnotation[] = [],
+  annotations: readonly CardAnnotation[] = [],
 ): DiffItem => {
   if (payload.binary || payload.tooLarge) return placeholderItem(payload, annotations);
 
@@ -128,7 +128,7 @@ export const itemFor = (
 
 export const withAnnotations = (
   item: DiffItem,
-  annotations: readonly ThreadAnnotation[],
+  annotations: readonly CardAnnotation[],
 ): DiffItem =>
   item.type === 'file'
     ? { ...item, annotations: lineAnnotationsFor(annotations) }

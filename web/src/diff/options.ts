@@ -5,7 +5,7 @@ import type {
   SelectedLineRange,
   VirtualFileMetrics,
 } from '@pierre/diffs';
-import type { Thread, ThreadAnnotation, ThreadLineAnnotation } from '../comments/anchors';
+import type { Card, CardAnnotation, CardLineAnnotation } from '../comments/anchors';
 import type { Bus } from '../core/bus';
 import type { AppState, AppStore } from '../core/store';
 import { themeOptionFor } from '../theme/catppuccin';
@@ -25,7 +25,7 @@ export const SCROLLBAR_CSS = `
 `;
 
 export type AnnotationRenderer = (
-  annotation: ThreadAnnotation | ThreadLineAnnotation,
+  annotation: CardAnnotation | CardLineAnnotation,
 ) => HTMLElement | undefined;
 
 interface ItemHandle {
@@ -42,7 +42,7 @@ export interface OptionsDeps {
 export const buildOptions = (
   state: AppState,
   { store, bus, metrics, renderAnnotation }: OptionsDeps,
-): CodeViewOptions<Thread[]> => ({
+): CodeViewOptions<Card[]> => ({
   theme: themeOptionFor(state.themePref),
   themeType: state.themePref === 'auto' ? 'system' : undefined,
   diffStyle: state.view,
@@ -51,7 +51,6 @@ export const buildOptions = (
   expandUnchanged: true,
   expansionLineCount: EXPANSION_LINE_COUNT,
   enableLineSelection: true,
-  enableGutterUtility: state.commentsEnabled,
   hunkSeparators: HUNK_SEPARATORS,
   layout: LAYOUT,
   itemMetrics: metrics,
@@ -61,8 +60,12 @@ export const buildOptions = (
     store.set({ selection, selectedFile: selection?.id ?? store.get().selectedFile });
     bus.emit('selection:changed', selection);
   },
-  onGutterUtilityClick(range: SelectedLineRange, context: ItemHandle) {
-    bus.emit('comment:compose', { fileId: context.item.id, range });
+  /**
+   * Only a settled selection carries the draft box. Following every drag step
+   * would shuffle the lines out from under the pointer mid-selection.
+   */
+  onLineSelected(range: SelectedLineRange | null, context: ItemHandle) {
+    store.set({ composing: range === null ? null : { id: context.item.id, range } });
   },
   renderAnnotation,
 });

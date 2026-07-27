@@ -1,7 +1,7 @@
 import { CodeView } from '@pierre/diffs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Comment, FilePayload, Manifest } from '../api/types';
-import type { Thread } from '../comments/anchors';
+import type { Card, Thread } from '../comments/anchors';
 import { threadFor } from '../comments/anchors';
 import type { CommentsStore } from '../comments/store';
 import { createBus } from '../core/bus';
@@ -91,10 +91,10 @@ interface Bench {
   root: HTMLElement;
   loadFile: ReturnType<typeof vi.fn>;
   setThreads(threads: Thread[]): void;
-  view(): CodeView<Thread[]>;
+  view(): CodeView<Card[]>;
 }
 
-let instances: CodeView<Thread[]>[] = [];
+let instances: CodeView<Card[]>[] = [];
 
 const bench = (): Bench => {
   const store = createStore(createInitialState());
@@ -110,8 +110,6 @@ const bench = (): Bench => {
     refresh: vi.fn(() => Promise.resolve()),
     threads: () => threads,
     threadsFor: (fileId: string) => threads.filter((thread) => thread.fileId === fileId),
-    compose: () => null,
-    setCompose: vi.fn(),
     draft: () => '',
     setDraft: vi.fn(),
     error: () => null,
@@ -144,7 +142,7 @@ const bench = (): Bench => {
   };
 };
 
-const ids = (view: CodeView<Thread[]>): string[] => {
+const ids = (view: CodeView<Card[]>): string[] => {
   const found: string[] = [];
   for (const id of ['f1', 'f2', 'f3']) if (view.getItem(id)) found.push(id);
   return found;
@@ -155,7 +153,7 @@ beforeEach(() => {
   instances = [];
   const original = CodeView.prototype.setup;
   vi.spyOn(CodeView.prototype, 'setup').mockImplementation(function setup(
-    this: CodeView<Thread[]>,
+    this: CodeView<Card[]>,
     node: HTMLElement,
   ) {
     instances.push(this);
@@ -217,6 +215,32 @@ describe('createViewer', () => {
     harness.setThreads([threadFor('f1', comment('c1'))]);
 
     expect(harness.view().getItem('f1')?.version).toBe(version);
+    harness.viewer.destroy();
+  });
+
+  it('hangs a draft box under the settled selection', () => {
+    const harness = bench();
+    harness.bus.emit('file:payload', payload('f1', 'src/f1.ts'));
+    harness.store.set({ commentsEnabled: true });
+    const range = { start: 2, end: 2, side: 'additions' as const };
+
+    harness.store.set({ composing: { id: 'f1', range } });
+    const annotations = harness.view().getItem('f1')?.annotations ?? [];
+    expect(annotations.length).toBe(1);
+    expect(annotations[0]?.metadata?.map((card) => card.kind)).toEqual(['draft']);
+
+    harness.store.set({ composing: null });
+    expect(harness.view().getItem('f1')?.annotations?.length).toBe(0);
+    harness.viewer.destroy();
+  });
+
+  it('keeps the draft box out of a diff with comments turned off', () => {
+    const harness = bench();
+    harness.bus.emit('file:payload', payload('f1', 'src/f1.ts'));
+
+    harness.store.set({ composing: { id: 'f1', range: { start: 2, end: 2 } } });
+
+    expect(harness.view().getItem('f1')?.annotations?.length).toBe(0);
     harness.viewer.destroy();
   });
 

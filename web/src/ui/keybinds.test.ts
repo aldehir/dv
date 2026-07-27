@@ -23,7 +23,7 @@ const setup = () => {
     'hunk:step',
     'filter:focus',
     'theme:cycle',
-    'comment:compose',
+    'draft:focus',
     'comment:step',
     'panel:toggle',
     'help:toggle',
@@ -70,19 +70,17 @@ describe('createKeybinds', () => {
     keybinds.destroy();
   });
 
-  it('composes a comment only when a selection exists', () => {
+  it('moves into the comment box only when a selection exists', () => {
     const { store, seen, keybinds } = setup();
     press('c');
     expect(seen).toEqual([]);
+    expect(store.get().composing).toBeNull();
 
-    store.set({ selection: { id: 'f1', range: { start: 2, end: 4, side: 'additions' } } });
+    const selection = { id: 'f1', range: { start: 2, end: 4, side: 'additions' as const } };
+    store.set({ selection });
     press('c');
-    expect(seen).toEqual([
-      [
-        'comment:compose',
-        { fileId: 'f1', range: { start: 2, end: 4, side: 'additions' } },
-      ],
-    ]);
+    expect(seen).toEqual([['draft:focus', undefined]]);
+    expect(store.get().composing).toEqual(selection);
     keybinds.destroy();
   });
 

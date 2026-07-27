@@ -4,6 +4,8 @@ import { COMMENTS_PATH } from '../playwright.config';
 
 const firstFileRow = (page: Page) => page.locator('.dv-tree__row').first();
 
+const DRAFT_INPUT = 'dv-thread__input--draft';
+
 /*
  * These run in the page, so they carry no closure — each one re-collects the
  * spans. They scan every rendered file rather than just the first, because
@@ -167,23 +169,14 @@ test('comment survives a reload and lands in comments.json', async ({ page }) =>
   await openFirstFile(page);
 
   const body = `e2e note ${Date.now()}`;
-  const gutter = page.locator('diffs-container [data-line-number-content]').first();
-  await gutter.hover();
+  // Selecting a line is the whole affordance now: the draft box follows it.
+  await page.locator('diffs-container [data-line-number-content]').first().click();
 
-  const utility = page.locator('diffs-container .gutter-utility, diffs-container button').first();
-  if ((await utility.count()) > 0) {
-    await utility.click({ trial: false }).catch(() => undefined);
-  }
-
-  const composer = page.locator('.dv-composer__input');
-  if ((await composer.count()) === 0) {
-    await page.keyboard.press('c');
-  }
-
-  if ((await page.locator('.dv-composer__input').count()) === 0) {
+  const draft = page.locator(`.${DRAFT_INPUT}`);
+  if ((await draft.count()) === 0) {
     test.info().annotations.push({
       type: 'note',
-      description: 'composer needs a line selection; exercising the API path instead',
+      description: 'draft box needs a line selection; exercising the API path instead',
     });
 
     const created = await page.evaluate(async (text) => {
@@ -206,8 +199,10 @@ test('comment survives a reload and lands in comments.json', async ({ page }) =>
 
     expect(created).toBe(true);
   } else {
-    await page.locator('.dv-composer__input').fill(body);
-    await page.locator('.dv-composer__save').click();
+    await draft.fill(body);
+    await page
+      .locator('.dv-thread__card--draft [aria-label="Save this comment"]')
+      .click();
   }
 
   await expect
@@ -230,4 +225,44 @@ test('comment survives a reload and lands in comments.json', async ({ page }) =>
   expect(stored.anchor.quote.length).toBeGreaterThan(0);
 
   await expect(page.locator('.dv-shell__panel')).toBeAttached();
+});
+
+test('the draft box follows the selection without chasing the drag', async ({ page }) => {
+  await openHighlightableFile(page);
+
+  const gutter = page.locator('diffs-container [data-line-number-content]');
+  const card = page.locator('.dv-thread__card--draft');
+  const draft = page.locator(`.${DRAFT_INPUT}`);
+  const selection = () => page.locator('.dv-status__selection').textContent();
+
+  await gutter.nth(2).click();
+  await expect(draft).toBeVisible();
+  const parked = (await card.boundingBox())?.y ?? 0;
+
+  // Dragging the end of the selection must not re-lay out the diff mid-drag:
+  // the box moving would shuffle the lines out from under the pointer.
+  await gutter.nth(2).hover();
+  await page.mouse.down();
+  const target = await gutter.nth(8).boundingBox();
+  if (!target) throw new Error('nothing to drag to');
+  await page.mouse.move(target.x + target.width / 2, target.y + target.height / 2, { steps: 8 });
+  expect(await selection()).toContain('-');
+  expect((await card.boundingBox())?.y).toBe(parked);
+
+  await page.mouse.up();
+  await expect.poll(async () => (await card.boundingBox())?.y).not.toBe(parked);
+
+  // Esc drops the selection and the box with it, but keeps what was written.
+  await draft.fill('kept while the box is away');
+  await page.keyboard.press('Escape');
+  await expect(card).toHaveCount(0);
+  expect(await selection()).toBe('no selection');
+
+  await gutter.nth(2).click();
+  await gutter.nth(8).click({ modifiers: ['Shift'] });
+  await expect(draft).toHaveValue('kept while the box is away');
+
+  await expect(draft).not.toBeFocused();
+  await page.keyboard.press('c');
+  await expect(draft).toBeFocused();
 });

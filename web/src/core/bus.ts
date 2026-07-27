@@ -1,6 +1,6 @@
 import type { Comment, FilePayload, Flavor, Manifest, ThemePref } from '../api/types';
 import type { Unsubscribe } from './component';
-import type { LineRange, LineSelection } from './store';
+import type { LineSelection } from './store';
 
 export interface FileSelected {
   id: string;
@@ -9,11 +9,6 @@ export interface FileSelected {
 
 export interface StepIntent {
   delta: number;
-}
-
-export interface ComposeIntent {
-  fileId: string;
-  range: LineRange;
 }
 
 export interface ThemeChanged {
@@ -32,7 +27,7 @@ export interface BusEvents {
   'theme:cycle': void;
   'theme:changed': ThemeChanged;
   'selection:changed': LineSelection | null;
-  'comment:compose': ComposeIntent;
+  'draft:focus': void;
   'comment:created': Comment;
   'comment:updated': Comment;
   'comment:deleted': { id: string };

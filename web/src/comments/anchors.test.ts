@@ -5,6 +5,7 @@ import {
   annotationSignature,
   annotationsFor,
   anchoredThreads,
+  draftFor,
   draftKeyFor,
   lineAnnotationsFor,
   rangeFor,
@@ -132,7 +133,24 @@ describe('annotationsFor', () => {
       threadFor('f1', comment({ id: 'b' })),
     ]);
     expect(annotations.length).toBe(1);
-    expect(annotations[0]?.metadata.map((thread) => thread.id)).toEqual(['a', 'b']);
+    expect(threadsFrom(annotations).map((thread) => thread.id)).toEqual(['a', 'b']);
+  });
+
+  it('trails the draft behind whatever already sits on that line', () => {
+    const draft = draftFor('f1', { start: 42, end: 47, side: 'additions' });
+    const annotations = annotationsFor([threadFor('f1', comment())], draft);
+
+    expect(annotations.length).toBe(1);
+    expect(annotations[0]?.metadata.map((card) => card.kind)).toEqual(['thread', 'draft']);
+    expect(annotations[0]?.lineNumber).toBe(47);
+  });
+
+  it('gives a draft its own annotation when no comment shares the line', () => {
+    const draft = draftFor('f1', { start: 3, end: 9, side: 'deletions' });
+    const annotations = annotationsFor([], draft);
+
+    expect(annotations).toEqual([{ side: 'deletions', lineNumber: 9, metadata: [draft] }]);
+    expect(draft.key).toBe('f1:deletions:3-9');
   });
 
   it('renders a file-level annotation at line zero', () => {
@@ -169,7 +187,7 @@ describe('lineAnnotationsFor', () => {
       { side: 'additions', lineNumber: 4, metadata: [threadFor('f1', comment({ id: 'c' }))] },
     ]);
     expect(merged.map((entry) => entry.lineNumber)).toEqual([1, 4]);
-    expect(merged[0]?.metadata?.map((thread) => thread.id)).toEqual(['a', 'b']);
+    expect(threadsFrom(merged.slice(0, 1)).map((thread) => thread.id)).toEqual(['a', 'b']);
   });
 });
 
@@ -184,6 +202,20 @@ describe('annotationSignature', () => {
     );
     expect(resolved).not.toBe(base);
     expect(replied).not.toBe(base);
+  });
+
+  it('changes when the draft box moves', () => {
+    const threads = [threadFor('f1', comment())];
+    const base = annotationSignature(annotationsFor(threads));
+    const drafted = annotationSignature(
+      annotationsFor(threads, draftFor('f1', { start: 42, end: 47, side: 'additions' })),
+    );
+    const moved = annotationSignature(
+      annotationsFor(threads, draftFor('f1', { start: 1, end: 1, side: 'additions' })),
+    );
+
+    expect(drafted).not.toBe(base);
+    expect(moved).not.toBe(drafted);
   });
 });
 

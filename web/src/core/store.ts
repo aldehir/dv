@@ -40,6 +40,8 @@ export interface AppState {
   scrollTop: number;
   selectedFile: string | null;
   selection: LineSelection | null;
+  /** The settled selection carrying the draft comment box, if any. */
+  composing: LineSelection | null;
   filter: string;
   sidebarVisible: boolean;
   panelVisible: boolean;
@@ -60,6 +62,7 @@ export const createInitialState = (): AppState => ({
   scrollTop: 0,
   selectedFile: null,
   selection: null,
+  composing: null,
   filter: '',
   sidebarVisible: true,
   panelVisible: false,

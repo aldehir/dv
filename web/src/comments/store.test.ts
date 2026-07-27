@@ -11,7 +11,8 @@ import type {
 } from '../api/types';
 import { createBus } from '../core/bus';
 import { createInitialState, createStore } from '../core/store';
-import type { CommentsStore, ComposeTarget } from './store';
+import { draftFor } from './anchors';
+import type { CommentsStore } from './store';
 import { createCommentsStore } from './store';
 
 const manifest = (): Manifest => ({
@@ -157,12 +158,7 @@ const harness = (over: Partial<ApiClient> = {}): Harness => {
   return { store, comments, source, client, responses };
 };
 
-const target = (): ComposeTarget => ({
-  fileId: 'f1',
-  path: 'src/a.ts',
-  range: { start: 4, end: 6, side: 'additions' },
-  key: 'f1:additions:4-6',
-});
+const target = () => draftFor('f1', { start: 4, end: 6, side: 'additions' });
 
 beforeEach(() => {
   created = [];
@@ -431,18 +427,12 @@ describe('createCommentsStore', () => {
     bench.comments.destroy();
   });
 
-  it('keeps a compose target and its draft across file switches', () => {
+  it('keeps a draft body keyed to its range, not to the open box', () => {
     const bench = harness();
-    bench.comments.setCompose({ fileId: 'f1', range: { start: 4, end: 6 } });
-    const composing = bench.comments.compose();
-    expect(composing).toMatchObject({ fileId: 'f1', path: 'src/a.ts', key: 'f1:additions:4-6' });
+    bench.comments.setDraft(target().key, 'half written');
 
-    bench.comments.setDraft(composing?.key ?? '', 'half written');
-    bench.comments.setCompose(null);
-    expect(bench.comments.compose()).toBeNull();
-
-    bench.comments.setCompose({ fileId: 'f1', range: { start: 4, end: 6 } });
-    expect(bench.comments.draft(bench.comments.compose()?.key ?? '')).toBe('half written');
+    expect(bench.comments.draft('f1:additions:4-6')).toBe('half written');
+    expect(bench.comments.draft('f1:additions:7-9')).toBe('');
     bench.comments.destroy();
   });
 

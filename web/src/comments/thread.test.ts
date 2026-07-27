@@ -1,10 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { Comment } from '../api/types';
 import { createBus } from '../core/bus';
-import type { Thread } from './anchors';
-import { threadFor } from './anchors';
+import { createInitialState, createStore } from '../core/store';
+import type { Card } from './anchors';
+import { draftFor, threadFor } from './anchors';
 import type { CommentsStore } from './store';
-import { createThreadList, locationLabel } from './thread';
+import { createCardList, locationLabel } from './thread';
 
 const HOSTILE = '<img src=x onerror="alert(1)"><script>alert(2)</script>**bold**';
 
@@ -31,13 +32,11 @@ const comment = (over: Partial<Comment> = {}): Comment => ({
   ...over,
 });
 
-const stubComments = (): CommentsStore => ({
+const stubComments = (over: Partial<CommentsStore> = {}): CommentsStore => ({
   start: vi.fn(),
   refresh: vi.fn(() => Promise.resolve()),
   threads: vi.fn(() => []),
   threadsFor: vi.fn(() => []),
-  compose: vi.fn(() => null),
-  setCompose: vi.fn(),
   draft: vi.fn(() => ''),
   setDraft: vi.fn(),
   error: vi.fn(() => null),
@@ -47,13 +46,15 @@ const stubComments = (): CommentsStore => ({
   reply: vi.fn(() => Promise.resolve(null)),
   subscribe: vi.fn(() => () => {}),
   destroy: vi.fn(),
+  ...over,
 });
 
-const setup = (threads: Thread[]) => {
+const setup = (cards: readonly Card[], over: Partial<CommentsStore> = {}) => {
+  const store = createStore(createInitialState());
   const bus = createBus();
-  const comments = stubComments();
-  const list = createThreadList(threads, { bus, comments });
-  return { bus, comments, list };
+  const comments = stubComments(over);
+  const list = createCardList(cards, { store, bus, comments });
+  return { store, bus, comments, list };
 };
 
 const inputOf = (list: { el: HTMLElement }): HTMLTextAreaElement => {
@@ -67,7 +68,7 @@ const buttonFor = (list: { el: HTMLElement }, label: string): HTMLButtonElement 
     (button) => button.getAttribute('aria-label') === label,
   );
 
-describe('createThreadList', () => {
+describe('createCardList', () => {
   it('renders one editable card per thread', () => {
     const { list } = setup([threadFor('f1', comment()), threadFor('f1', comment({ id: 'c2' }))]);
 
@@ -161,6 +162,74 @@ describe('createThreadList', () => {
     expect(comments.update).not.toHaveBeenCalled();
     expect(comments.remove).not.toHaveBeenCalled();
     expect(list.el.childElementCount).toBe(0);
+  });
+
+  it('gives a draft the same card as an edit, with a discard in place of delete', () => {
+    const { list } = setup([draftFor('f1', { start: 4, end: 6, side: 'additions' })], {
+      draft: vi.fn(() => 'half written'),
+    });
+    const labels = [...list.el.querySelectorAll('.dv-thread__action')].map((button) =>
+      button.getAttribute('aria-label'),
+    );
+
+    expect(list.el.querySelectorAll('.dv-thread__card--draft').length).toBe(1);
+    expect(labels).toEqual(['Save this comment', 'Discard this comment']);
+    expect(inputOf(list).value).toBe('half written');
+    list.destroy();
+  });
+
+  it('holds the draft body while the box moves around', () => {
+    const draft = draftFor('f1', { start: 4, end: 6, side: 'additions' });
+    const { comments, list } = setup([draft]);
+    const input = inputOf(list);
+    input.value = 'a thought';
+    input.dispatchEvent(new Event('input'));
+
+    expect(comments.setDraft).toHaveBeenCalledWith('f1:additions:4-6', 'a thought');
+    list.destroy();
+  });
+
+  it('posts a draft and takes the box away with the selection', () => {
+    const draft = draftFor('f1', { start: 4, end: 6, side: 'additions' });
+    const { store, comments, list } = setup([draft]);
+    store.set({ selection: { id: 'f1', range: draft.range }, composing: { id: 'f1', range: draft.range } });
+    inputOf(list).value = '  worth a look  ';
+    buttonFor(list, 'Save this comment')?.click();
+
+    expect(comments.create).toHaveBeenCalledWith(draft, 'worth a look');
+    expect(store.get().selection).toBeNull();
+    expect(store.get().composing).toBeNull();
+    list.destroy();
+  });
+
+  it('skips an empty draft', () => {
+    const { comments, list } = setup([draftFor('f1', { start: 4, end: 6 })]);
+    inputOf(list).value = '   ';
+    buttonFor(list, 'Save this comment')?.click();
+
+    expect(comments.create).not.toHaveBeenCalled();
+    list.destroy();
+  });
+
+  it('throws the body away on discard', () => {
+    const { store, comments, list } = setup([draftFor('f1', { start: 4, end: 6 })]);
+    store.set({ composing: { id: 'f1', range: { start: 4, end: 6 } } });
+    buttonFor(list, 'Discard this comment')?.click();
+
+    expect(comments.setDraft).toHaveBeenCalledWith('f1:additions:4-6', '');
+    expect(store.get().composing).toBeNull();
+    list.destroy();
+  });
+
+  it('shows a save failure on the draft still holding the text', () => {
+    const { list } = setup([draftFor('f1', { start: 4, end: 6 })], {
+      error: vi.fn(() => 'dv server is unreachable'),
+    });
+    const notice = list.el.querySelector<HTMLElement>('.dv-thread__notice');
+
+    expect(notice?.hidden).toBe(false);
+    expect(notice?.textContent).toBe('dv server is unreachable');
+    list.destroy();
   });
 
   it('drops listeners from the previous render on update', () => {

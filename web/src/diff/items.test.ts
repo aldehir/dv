@@ -1,7 +1,7 @@
 import type { FileDiffMetadata } from '@pierre/diffs';
 import { describe, expect, it } from 'vitest';
 import type { FilePayload } from '../api/types';
-import type { Thread, ThreadAnnotation } from '../comments/anchors';
+import type { CardAnnotation, Thread } from '../comments/anchors';
 import {
   CACHE_KEY_PREFIX,
   attachFullContents,
@@ -44,6 +44,7 @@ const payload = (over: Partial<FilePayload> = {}): FilePayload => ({
 });
 
 const thread = (id: string): Thread => ({
+  kind: 'thread',
   id,
   fileId: 'f1',
   path: 'src/a.ts',
@@ -76,7 +77,7 @@ const thread = (id: string): Thread => ({
   },
 });
 
-const annotation = (): ThreadAnnotation => ({
+const annotation = (): CardAnnotation => ({
   side: 'additions',
   lineNumber: 5,
   metadata: [thread('c1')],

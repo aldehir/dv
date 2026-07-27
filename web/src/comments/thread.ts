@@ -2,17 +2,23 @@ import type { Bus } from '../core/bus';
 import type { Component, Disposer } from '../core/component';
 import { createDisposer } from '../core/component';
 import { el, on, replaceChildren } from '../core/dom';
+import type { AppStore } from '../core/store';
 import { type IconName, icon } from '../ui/icons';
-import type { Thread } from './anchors';
+import type { Card, Draft, Thread } from './anchors';
 import type { CommentsStore } from './store';
 
-export interface ThreadDeps {
+export interface CardDeps {
+  store: AppStore;
   bus: Bus;
   comments: CommentsStore;
 }
 
+/** How the viewer finds the draft box once the diff has rendered it. */
+export const DRAFT_INPUT_CLASS = 'dv-thread__input--draft';
+
 const MIN_ROWS = 2;
 const MAX_ROWS = 12;
+const DRAFT_HINT = 'Comment — ⌘↵ or Ctrl↵ to save, Esc to cancel';
 
 const sideLabel = (thread: Thread): string =>
   thread.side === 'deletions' ? 'old' : 'new';
@@ -44,7 +50,25 @@ const actionButton = (
     icon(name),
   );
 
-const buildCard = (thread: Thread, deps: ThreadDeps, disposer: Disposer): HTMLElement => {
+const saveOnEnter = (
+  input: HTMLTextAreaElement,
+  save: HTMLButtonElement,
+  disposer: Disposer,
+): void => {
+  disposer.add(
+    on(input, 'keydown', (event) => {
+      if (event.key !== 'Enter' || !(event.metaKey || event.ctrlKey)) return;
+      event.preventDefault();
+      save.click();
+    }),
+  );
+};
+
+const buildThreadCard = (
+  thread: Thread,
+  deps: CardDeps,
+  disposer: Disposer,
+): HTMLElement => {
   const input = el('textarea', {
     class: 'dv-thread__input',
     rows: rowsFor(thread.comment.body),
@@ -70,13 +94,7 @@ const buildCard = (thread: Thread, deps: ThreadDeps, disposer: Disposer): HTMLEl
       void deps.comments.remove(thread.id);
     }),
   );
-  disposer.add(
-    on(input, 'keydown', (event) => {
-      if (event.key !== 'Enter' || !(event.metaKey || event.ctrlKey)) return;
-      event.preventDefault();
-      save.click();
-    }),
-  );
+  saveOnEnter(input, save, disposer);
 
   const card = el(
     'article',
@@ -91,20 +109,72 @@ const buildCard = (thread: Thread, deps: ThreadDeps, disposer: Disposer): HTMLEl
   return card;
 };
 
-export const createThreadList = (
-  threads: readonly Thread[],
-  deps: ThreadDeps,
-): Component<readonly Thread[]> => {
+const buildDraftCard = (draft: Draft, deps: CardDeps, disposer: Disposer): HTMLElement => {
+  const body = deps.comments.draft(draft.key);
+  const input = el('textarea', {
+    class: `dv-thread__input ${DRAFT_INPUT_CLASS}`,
+    rows: rowsFor(body),
+    value: body,
+    placeholder: DRAFT_HINT,
+    spellcheck: false,
+  });
+  const save = actionButton('check', 'Save this comment');
+  const discard = actionButton('close', 'Discard this comment');
+
+  const failure = deps.comments.error();
+  const notice = el('span', {
+    class: 'dv-thread__notice',
+    hidden: failure === null,
+    textContent: failure ?? '',
+  });
+
+  // Dropping the selection is what takes the box away; the draft body outlives it.
+  const dismiss = (): void => deps.store.set({ selection: null, composing: null });
+
+  disposer.add(on(input, 'input', () => deps.comments.setDraft(draft.key, input.value)));
+  disposer.add(
+    on(save, 'click', () => {
+      const text = input.value.trim();
+      if (text === '') return;
+      void deps.comments.create(draft, text);
+      dismiss();
+    }),
+  );
+  disposer.add(
+    on(discard, 'click', () => {
+      deps.comments.setDraft(draft.key, '');
+      dismiss();
+    }),
+  );
+  saveOnEnter(input, save, disposer);
+
+  return el(
+    'article',
+    { class: 'dv-thread__card dv-thread__card--draft' },
+    input,
+    el('div', { class: 'dv-thread__actions dv-thread__actions--draft' }, notice, save, discard),
+  );
+};
+
+const buildCard = (card: Card, deps: CardDeps, disposer: Disposer): HTMLElement =>
+  card.kind === 'draft'
+    ? buildDraftCard(card, deps, disposer)
+    : buildThreadCard(card, deps, disposer);
+
+export const createCardList = (
+  cards: readonly Card[],
+  deps: CardDeps,
+): Component<readonly Card[]> => {
   let disposer = createDisposer();
   const root = el('div', { class: 'dv-thread' });
 
-  const update = (next: readonly Thread[]): void => {
+  const update = (next: readonly Card[]): void => {
     disposer.dispose();
     disposer = createDisposer();
-    replaceChildren(root, ...next.map((thread) => buildCard(thread, deps, disposer)));
+    replaceChildren(root, ...next.map((card) => buildCard(card, deps, disposer)));
   };
 
-  update(threads);
+  update(cards);
 
   return {
     el: root,
