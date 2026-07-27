@@ -63,12 +63,12 @@ const manifest = (): Manifest => ({
   totals: { files: 3, additions: 3, deletions: 3 },
 });
 
-const comment = (id: string, status: Comment['status'] = 'open'): Comment => ({
+/** `edited` stands in for any later revision: it moves the annotation signature. */
+const comment = (id: string, edited = false): Comment => ({
   id,
-  status,
   author: { name: 'alde' },
   createdAt: '2026-07-26T18:00:00Z',
-  updatedAt: `2026-07-26T18:00:0${status === 'open' ? 0 : 1}Z`,
+  updatedAt: `2026-07-26T18:00:0${edited ? 1 : 0}Z`,
   body: 'take a look',
   anchor: {
     path: 'src/f1.ts',
@@ -220,7 +220,7 @@ describe('createViewer', () => {
     expect(harness.view().getItem('f1')?.version).toBe(1);
     expect(harness.view().getItem('f1')?.annotations?.length).toBe(1);
 
-    harness.setThreads([threadFor('f1', comment('c1', 'resolved'))]);
+    harness.setThreads([threadFor('f1', comment('c1', true))]);
     expect(harness.view().getItem('f1')?.version).toBe(2);
 
     harness.viewer.updateItem('f1', { collapsed: true });

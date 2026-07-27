@@ -25,7 +25,6 @@ func goldenDoc() *model.CommentsDoc {
 		Comments: []model.Comment{
 			{
 				ID:        "cmt_01J8ZQ4K",
-				Status:    model.CommentOpen,
 				Author:    model.Author{Name: "Alde Rojas", Email: "alde@example.com"},
 				CreatedAt: "2026-07-26T18:00:00Z",
 				UpdatedAt: "2026-07-26T18:03:00Z",
@@ -54,7 +53,6 @@ func goldenDoc() *model.CommentsDoc {
 			},
 			{
 				ID:        "cmt_01J8ZQ5M",
-				Status:    model.CommentResolved,
 				Author:    model.Author{Name: "Alde Rojas"},
 				CreatedAt: "2026-07-26T18:01:00Z",
 				UpdatedAt: "2026-07-26T18:02:00Z",
@@ -105,11 +103,10 @@ func TestExportMarkdownGolden(t *testing.T) {
 		"- Diff: two-dot `main feature` (9f8e7d6c5b4a..1c2d3e4f5a6b)\n" +
 		"- Generator: dv/0.1.0\n" +
 		"- Updated: 2026-07-26T18:04:11Z\n" +
-		"- Comments: 2 comments (1 open, 1 resolved, 1 stale)\n" +
+		"- Comments: 2 comments (1 stale)\n" +
 		"\n" +
 		"## internal/gitx/blob.go:8-9\n" +
 		"\n" +
-		"- Status: open\n" +
 		"- Side: additions (new)\n" +
 		"- Language: go\n" +
 		"- Author: Alde Rojas <alde@example.com>\n" +
@@ -129,7 +126,6 @@ func TestExportMarkdownGolden(t *testing.T) {
 		"\n" +
 		"## web/src/main.ts:9\n" +
 		"\n" +
-		"- Status: resolved\n" +
 		"- Side: deletions (old)\n" +
 		"- Author: Alde Rojas\n" +
 		"- Created: 2026-07-26T18:01:00Z\n" +
@@ -156,14 +152,14 @@ func TestExportPromptGolden(t *testing.T) {
 		"Diff: two-dot `main feature` (9f8e7d6c5b4a..1c2d3e4f5a6b)\n" +
 		"Head: a1b2c3d4e5f6\n" +
 		"\n" +
-		"2 comments (1 open, 1 resolved, 1 stale) follow.\n" +
+		"2 comments (1 stale) follow.\n" +
 		"\n" +
 		"Each comment gives a file, a line range on one side of the diff, the exact\n" +
 		"lines it refers to prefixed with their real line numbers, and the reviewer's\n" +
-		"note. Address each note, then set the comment's \"status\" to \"resolved\" in\n" +
-		"comments.json and append a reply saying what you changed.\n" +
+		"note. Address each note, then append a reply in comments.json saying what\n" +
+		"you changed.\n" +
 		"\n" +
-		"## 1. internal/gitx/blob.go lines 8-9 (new side, go) — open\n" +
+		"## 1. internal/gitx/blob.go lines 8-9 (new side, go)\n" +
 		"\n" +
 		"Anchor moved from lines 4-5 (rule: quote).\n" +
 		"\n" +
@@ -177,7 +173,7 @@ func TestExportPromptGolden(t *testing.T) {
 		"Replies:\n" +
 		"- agent: Fixed in 3f1a — added a ctx.Err() check. Also added a test.\n" +
 		"\n" +
-		"## 2. web/src/main.ts line 9 (old side) — resolved\n" +
+		"## 2. web/src/main.ts line 9 (old side)\n" +
 		"\n" +
 		"Anchor is stale (rule: gone) — the line numbers may be wrong, find the code by the quoted lines.\n" +
 		"\n" +
@@ -216,7 +212,6 @@ func TestExportJSONGolden(t *testing.T) {
   "comments": [
     {
       "id": "cmt_01J8ZQ4K",
-      "status": "open",
       "author": {
         "name": "Alde Rojas",
         "email": "alde@example.com"
@@ -261,7 +256,6 @@ func TestExportJSONGolden(t *testing.T) {
     },
     {
       "id": "cmt_01J8ZQ5M",
-      "status": "resolved",
       "author": {
         "name": "Alde Rojas"
       },

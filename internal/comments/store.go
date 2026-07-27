@@ -279,7 +279,6 @@ func (s *Store) AddAs(anchor model.Anchor, body string, author model.Author, ifM
 	now := s.nowString()
 	created := model.Comment{
 		ID:        newID(commentIDPrefix),
-		Status:    model.CommentOpen,
 		Author:    firstAuthor(author, s.author),
 		CreatedAt: now,
 		UpdatedAt: now,
@@ -303,7 +302,7 @@ func (s *Store) AddAs(anchor model.Anchor, body string, author model.Author, ifM
 	return &out, etag, nil
 }
 
-func (s *Store) Update(id string, body *string, status *model.CommentStatus, ifMatch string) (*model.Comment, string, error) {
+func (s *Store) Update(id string, body *string, ifMatch string) (*model.Comment, string, error) {
 	var out model.Comment
 	etag, err := s.mutate(ifMatch, func(doc *model.CommentsDoc) error {
 		c := findComment(doc, id)
@@ -315,14 +314,6 @@ func (s *Store) Update(id string, body *string, status *model.CommentStatus, ifM
 				return fmt.Errorf("%w: comment body is empty", ErrInvalid)
 			}
 			c.Body = strings.TrimRight(*body, " \t\n")
-		}
-		if status != nil {
-			if !validStatus(*status) {
-				return fmt.Errorf("%w: status %q is not open, resolved or wontfix", ErrInvalid, *status)
-			}
-			c.Status = *status
-		}
-		if body != nil || status != nil {
 			c.UpdatedAt = s.nowString()
 		}
 		out = cloneComment(*c)

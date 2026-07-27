@@ -96,7 +96,6 @@ export interface FilePayload {
 }
 
 export type AnnotationSide = 'additions' | 'deletions';
-export type CommentStatus = 'open' | 'resolved' | 'wontfix';
 
 export interface Author {
   name: string;
@@ -141,7 +140,6 @@ export interface Reply {
 
 export interface Comment {
   id: string;
-  status: CommentStatus;
   author: Author;
   createdAt: string;
   updatedAt: string;
@@ -177,5 +175,4 @@ export interface NewCommentRequest {
 
 export interface PatchCommentRequest {
   body?: string;
-  status?: CommentStatus;
 }

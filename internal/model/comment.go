@@ -9,14 +9,6 @@ const (
 	SideDeletions AnnotationSide = "deletions"
 )
 
-type CommentStatus string
-
-const (
-	CommentOpen     CommentStatus = "open"
-	CommentResolved CommentStatus = "resolved"
-	CommentWontFix  CommentStatus = "wontfix"
-)
-
 type Author struct {
 	Name  string `json:"name"`
 	Email string `json:"email,omitempty"`
@@ -60,7 +52,6 @@ type Reply struct {
 
 type Comment struct {
 	ID             string          `json:"id"`
-	Status         CommentStatus   `json:"status"`
 	Author         Author          `json:"author"`
 	CreatedAt      string          `json:"createdAt"`
 	UpdatedAt      string          `json:"updatedAt"`

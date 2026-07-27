@@ -70,7 +70,6 @@ const quote = "\tfor {\n\t\tif err := r.next(); err != nil {\n"
 func drainComment() model.Comment {
 	return model.Comment{
 		ID:     "cmt_drain",
-		Status: model.CommentOpen,
 		Body:   "This retries forever if the context is already cancelled.",
 		Anchor: model.Anchor{
 			Path:      "internal/gitx/blob.go",

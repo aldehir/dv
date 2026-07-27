@@ -742,18 +742,12 @@ samp,
 
 .dv-inbox {
   display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  grid-template-rows: auto minmax(0, 1fr) auto;
   height: 100%;
 }
 
-.dv-inbox__head {
-  display: flex;
-  gap: 0.3rem;
-  padding: 0.4rem 0.5rem;
-}
-
 .dv-inbox__meta {
-  padding: 0 0.6rem 0.35rem;
+  padding: 0.5rem 0.6rem 0.35rem;
   color: var(--dv-fg-faint);
 }
 

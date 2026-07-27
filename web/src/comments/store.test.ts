@@ -51,7 +51,6 @@ const manifest = (): Manifest => ({
 
 const comment = (id: string, path = 'src/a.ts', stale = false): Comment => ({
   id,
-  status: 'open',
   author: { name: 'alde' },
   createdAt: '2026-07-26T18:00:00Z',
   updatedAt: '2026-07-26T18:00:00Z',
@@ -131,7 +130,7 @@ const harness = (over: Partial<ApiClient> = {}): Harness => {
       return Promise.resolve({ value: comment('server-1'), etag: 'etag-2' });
     },
     updateComment: (id) =>
-      Promise.resolve({ value: { ...comment(id), status: 'resolved' }, etag: 'etag-2' }),
+      Promise.resolve({ value: { ...comment(id), body: 'echoed' }, etag: 'etag-2' }),
     deleteComment: (id, etag) => {
       deletes.push({ id, etag });
       return Promise.resolve({ value: undefined, etag: 'etag-2' });
@@ -270,13 +269,13 @@ describe('createCommentsStore', () => {
     bench.comments.start();
     await vi.waitFor(() => expect(bench.comments.threads().length).toBe(1));
 
-    bench.responses.doc = doc([{ ...comment('c1'), status: 'resolved' }, comment('c9')]);
-    const result = await bench.comments.update('c1', { status: 'wontfix' });
+    bench.responses.doc = doc([{ ...comment('c1'), body: 'from the server' }, comment('c9')]);
+    const result = await bench.comments.update('c1', { body: 'mine' });
 
     expect(result).toBeNull();
     expect(bench.comments.error()).toContain('etag mismatch');
     expect(bench.comments.threads().map((thread) => thread.id)).toEqual(['c1', 'c9']);
-    expect(bench.comments.threads()[0]?.status).toBe('resolved');
+    expect(bench.comments.threads()[0]?.comment.body).toBe('from the server');
     bench.comments.destroy();
   });
 
@@ -286,10 +285,10 @@ describe('createCommentsStore', () => {
     bench.comments.start();
     await vi.waitFor(() => expect(bench.comments.threads().length).toBe(1));
 
-    const pending = bench.comments.update('c1', { status: 'resolved' });
-    expect(bench.comments.threads()[0]?.status).toBe('resolved');
+    const pending = bench.comments.update('c1', { body: 'revised' });
+    expect(bench.comments.threads()[0]?.comment.body).toBe('revised');
     await pending;
-    expect(bench.comments.threads()[0]?.status).toBe('resolved');
+    expect(bench.comments.threads()[0]?.comment.body).toBe('echoed');
     bench.comments.destroy();
   });
 

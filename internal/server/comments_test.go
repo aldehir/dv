@@ -48,9 +48,6 @@ func TestCreateCommentFillsAnchorServerSide(t *testing.T) {
 	if comment.Author.Name != "Fixture User" {
 		t.Errorf("author.name = %q, want Fixture User", comment.Author.Name)
 	}
-	if comment.Status != model.CommentOpen {
-		t.Errorf("status = %q, want open", comment.Status)
-	}
 }
 
 func TestCreateCommentOnDeletionsSide(t *testing.T) {
@@ -132,11 +129,11 @@ func TestPatchConflictAndNewETag(t *testing.T) {
 	var current commentsResponse
 	h.decode(h.get("/api/comments"), &current)
 
-	stale := h.request(http.MethodPatch, "/api/comments/"+comment.ID, `{"status":"resolved"}`,
+	stale := h.request(http.MethodPatch, "/api/comments/"+comment.ID, `{"body":"first, revised"}`,
 		map[string]string{"If-Match": "0000000000000000000000000000000f"})
 	wantStatus(t, stale, http.StatusConflict)
 
-	fresh := h.request(http.MethodPatch, "/api/comments/"+comment.ID, `{"status":"resolved","body":"first, revised"}`,
+	fresh := h.request(http.MethodPatch, "/api/comments/"+comment.ID, `{"body":"first, revised"}`,
 		map[string]string{"If-Match": current.ETag})
 	wantStatus(t, fresh, http.StatusOK)
 
@@ -150,9 +147,6 @@ func TestPatchConflictAndNewETag(t *testing.T) {
 
 	var updated model.Comment
 	h.decode(fresh, &updated)
-	if updated.Status != model.CommentResolved {
-		t.Errorf("status = %q, want resolved", updated.Status)
-	}
 	if updated.Body != "first, revised" {
 		t.Errorf("body = %q, want the revised body", updated.Body)
 	}
@@ -160,7 +154,7 @@ func TestPatchConflictAndNewETag(t *testing.T) {
 
 func TestPatchUnknownComment(t *testing.T) {
 	h := newHarness(t, seedRepo(t), nil)
-	wantStatus(t, h.request(http.MethodPatch, "/api/comments/cmt_nope", `{"status":"resolved"}`, nil), http.StatusNotFound)
+	wantStatus(t, h.request(http.MethodPatch, "/api/comments/cmt_nope", `{"body":"anything"}`, nil), http.StatusNotFound)
 	wantStatus(t, h.request(http.MethodDelete, "/api/comments/cmt_nope", "", nil), http.StatusNotFound)
 	wantStatus(t, h.request(http.MethodPost, "/api/comments/cmt_nope/replies", `{"body":"hi"}`, nil), http.StatusNotFound)
 }

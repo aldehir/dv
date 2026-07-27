@@ -75,12 +75,12 @@ describe('createClient', () => {
   it('sends If-Match on comment mutations', async () => {
     const fetchImpl = vi.fn(fetchStub(() => jsonResponse({})));
     const client = createClient({ fetch: fetchImpl });
-    await client.updateComment('cmt_1', { status: 'resolved' }, 'etag-1');
+    await client.updateComment('cmt_1', { body: 'revised' }, 'etag-1');
 
     const init = fetchImpl.mock.calls[0]?.[1] as RequestInit;
     expect(init.method).toBe('PATCH');
     expect((init.headers as Record<string, string>)['If-Match']).toBe('etag-1');
-    expect(init.body).toBe('{"status":"resolved"}');
+    expect(init.body).toBe('{"body":"revised"}');
   });
 
   it('surfaces 409 conflicts distinctly', async () => {

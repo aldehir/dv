@@ -16,7 +16,7 @@ import (
 )
 
 const commentsUsage = `Usage:
-  dv comments list   [--status open|resolved|wontfix] [--path <glob>] [--comments <file>]
+  dv comments list   [--path <glob>] [--comments <file>]
   dv comments export [--format md|json|prompt] [-o <file>|-] [--comments <file>]
 
 Both read <repo-root>/comments.json (or --comments <file>) and never start a
@@ -45,14 +45,9 @@ func Comments(argv []string, version string, stdout, stderr io.Writer) int {
 func listComments(argv []string, stdout, stderr io.Writer) int {
 	flags := flag.NewFlagSet("dv comments list", flag.ContinueOnError)
 	flags.SetOutput(stderr)
-	status := flags.String("status", "", "only comments with this status: open, resolved or wontfix")
 	glob := flags.String("path", "", "only comments whose file matches this glob or prefix")
 	file := flags.String("comments", "", "comments file to read")
 	if err := flags.Parse(argv); err != nil {
-		return 2
-	}
-	if *status != "" && !validStatus(*status) {
-		fmt.Fprintf(stderr, "dv comments: invalid --status %q: want open, resolved or wontfix\n", *status)
 		return 2
 	}
 
@@ -63,9 +58,6 @@ func listComments(argv []string, stdout, stderr io.Writer) int {
 
 	shown := 0
 	for _, c := range doc.Comments {
-		if *status != "" && string(c.Status) != *status {
-			continue
-		}
 		if !matchesPath(*glob, c.Anchor.Path) {
 			continue
 		}
@@ -81,7 +73,7 @@ func listComments(argv []string, stdout, stderr io.Writer) int {
 }
 
 func writeComment(w io.Writer, c model.Comment) {
-	fmt.Fprintf(w, "%s  [%s]  %s\n", anchorLabel(c.Anchor), c.Status, c.ID)
+	fmt.Fprintf(w, "%s  %s\n", anchorLabel(c.Anchor), c.ID)
 	fmt.Fprintf(w, "    %s  %s\n", author(c.Author), c.UpdatedAt)
 	if c.ResolvedAnchor != nil {
 		switch {
@@ -202,14 +194,6 @@ func open(file string, stderr io.Writer) (*comments.Store, int) {
 		return nil, 1
 	}
 	return store, 0
-}
-
-func validStatus(s string) bool {
-	switch model.CommentStatus(s) {
-	case model.CommentOpen, model.CommentResolved, model.CommentWontFix:
-		return true
-	}
-	return false
 }
 
 func matchesPath(glob, filePath string) bool {

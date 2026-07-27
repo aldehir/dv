@@ -11,7 +11,6 @@ const HOSTILE = '<img src=x onerror="alert(1)"><script>alert(2)</script>**bold**
 
 const comment = (over: Partial<Comment> = {}): Comment => ({
   id: 'c1',
-  status: 'open',
   author: { name: 'alde' },
   createdAt: '2026-07-26T18:00:00Z',
   updatedAt: '2026-07-26T18:00:00Z',

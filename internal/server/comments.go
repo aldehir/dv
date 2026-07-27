@@ -48,8 +48,7 @@ type createRequest struct {
 }
 
 type updateRequest struct {
-	Body   *string              `json:"body"`
-	Status *model.CommentStatus `json:"status"`
+	Body *string `json:"body"`
 }
 
 type replyRequest struct {
@@ -169,11 +168,11 @@ func (s *Server) handleCommentsUpdate(w http.ResponseWriter, r *http.Request) {
 	if !decodeJSON(w, r, &req) {
 		return
 	}
-	if req.Body == nil && req.Status == nil {
-		writeError(w, http.StatusBadRequest, "nothing to update", "send body, status or both")
+	if req.Body == nil {
+		writeError(w, http.StatusBadRequest, "nothing to update", "send a body")
 		return
 	}
-	comment, etag, err := s.opts.Store.Update(r.PathValue("id"), req.Body, req.Status, r.Header.Get("If-Match"))
+	comment, etag, err := s.opts.Store.Update(r.PathValue("id"), req.Body, r.Header.Get("If-Match"))
 	if err != nil {
 		s.fail(w, r, err)
 		return

@@ -132,9 +132,6 @@ func TestAddPersistsAndOrdersStably(t *testing.T) {
 		if len(c.ID) != len(commentIDPrefix)+26 {
 			t.Errorf("id %q has length %d, want %d", c.ID, len(c.ID), len(commentIDPrefix)+26)
 		}
-		if c.Status != model.CommentOpen {
-			t.Errorf("status = %q, want open", c.Status)
-		}
 		if c.Author.Name != "Alde Rojas" {
 			t.Errorf("author = %#v", c.Author)
 		}
@@ -209,7 +206,7 @@ func TestConcurrentWriteConflicts(t *testing.T) {
 	}
 
 	body := "written by the agent"
-	_, next, err := s.Update(c.ID, &body, nil, shared)
+	_, next, err := s.Update(c.ID, &body, shared)
 	if err != nil {
 		t.Fatalf("first Update: %v", err)
 	}
@@ -218,7 +215,7 @@ func TestConcurrentWriteConflicts(t *testing.T) {
 	}
 
 	other := "written by the UI"
-	if _, _, err := s.Update(c.ID, &other, nil, shared); !errors.Is(err, ErrConflict) {
+	if _, _, err := s.Update(c.ID, &other, shared); !errors.Is(err, ErrConflict) {
 		t.Fatalf("second Update err = %v, want ErrConflict", err)
 	}
 
@@ -249,7 +246,7 @@ func TestIfMatchForms(t *testing.T) {
 				t.Fatalf("Load: %v", err)
 			}
 			body := "revised"
-			if _, _, err := s.Update(c.ID, &body, nil, form(etag)); err != nil {
+			if _, _, err := s.Update(c.ID, &body, form(etag)); err != nil {
 				t.Fatalf("Update with If-Match %q: %v", form(etag), err)
 			}
 		})
@@ -257,7 +254,7 @@ func TestIfMatchForms(t *testing.T) {
 
 	s := newTestStore(t)
 	c := mustAdd(t, s, anchorAt("a.go", 1, 1), "original")
-	if _, _, err := s.Update(c.ID, nil, nil, "0123456789abcdef0123456789abcdef"); !errors.Is(err, ErrConflict) {
+	if _, _, err := s.Update(c.ID, nil, "0123456789abcdef0123456789abcdef"); !errors.Is(err, ErrConflict) {
 		t.Fatalf("err = %v, want ErrConflict", err)
 	}
 }
@@ -266,9 +263,8 @@ func TestUpdateCannotMutateOwnedFields(t *testing.T) {
 	s := newTestStore(t)
 	created := mustAdd(t, s, anchorAt("internal/gitx/blob.go", 42, 47), "original body")
 
-	status := model.CommentResolved
 	body := "revised body"
-	updated, _, err := s.Update(created.ID, &body, &status, "")
+	updated, _, err := s.Update(created.ID, &body, "")
 	if err != nil {
 		t.Fatalf("Update: %v", err)
 	}
@@ -290,8 +286,8 @@ func TestUpdateCannotMutateOwnedFields(t *testing.T) {
 		updated.Anchor.Side != created.Anchor.Side {
 		t.Errorf("anchor changed: %#v -> %#v", created.Anchor, updated.Anchor)
 	}
-	if updated.Body != body || updated.Status != model.CommentResolved {
-		t.Errorf("mutable fields did not take: %#v", updated)
+	if updated.Body != body {
+		t.Errorf("the body did not take: %#v", updated)
 	}
 	if updated.UpdatedAt == created.UpdatedAt {
 		t.Error("updatedAt should advance on a change")
@@ -306,19 +302,15 @@ func TestUpdateCannotMutateOwnedFields(t *testing.T) {
 	}
 }
 
-func TestUpdateRejectsUnknownStatusAndEmptyBody(t *testing.T) {
+func TestUpdateRejectsEmptyBody(t *testing.T) {
 	s := newTestStore(t)
 	c := mustAdd(t, s, anchorAt("a.go", 1, 1), "body")
 
-	bogus := model.CommentStatus("done")
-	if _, _, err := s.Update(c.ID, nil, &bogus, ""); !errors.Is(err, ErrInvalid) {
-		t.Fatalf("status err = %v, want ErrInvalid", err)
-	}
 	blank := "  "
-	if _, _, err := s.Update(c.ID, &blank, nil, ""); !errors.Is(err, ErrInvalid) {
+	if _, _, err := s.Update(c.ID, &blank, ""); !errors.Is(err, ErrInvalid) {
 		t.Fatalf("body err = %v, want ErrInvalid", err)
 	}
-	if _, _, err := s.Update("cmt_nope", &blank, nil, ""); !errors.Is(err, ErrNotFound) {
+	if _, _, err := s.Update("cmt_nope", &blank, ""); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("missing id err = %v, want ErrNotFound", err)
 	}
 }
@@ -477,9 +469,6 @@ func TestLoadToleratesUnknownFieldsAndRepairsGaps(t *testing.T) {
 		t.Fatalf("comments = %#v", doc.Comments)
 	}
 	c := doc.Comments[0]
-	if c.Status != model.CommentOpen {
-		t.Errorf("status = %q, want it reset to open", c.Status)
-	}
 	if c.Author.Name != "Alde Rojas" {
 		t.Errorf("author = %#v, want the configured fallback", c.Author)
 	}
@@ -584,7 +573,7 @@ func TestConcurrentReadersNeverSeeAPartialDoc(t *testing.T) {
 
 	for i := range 60 {
 		body := strings.Repeat("padding for a bigger write ", i+1)
-		if _, _, err := s.Update(c.ID, &body, nil, ""); err != nil {
+		if _, _, err := s.Update(c.ID, &body, ""); err != nil {
 			t.Fatalf("Update: %v", err)
 		}
 	}

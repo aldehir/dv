@@ -234,7 +234,6 @@ export const createCommentsStore = ({
       const anchor = requestAnchorFor(pathFor(draft.fileId), draft.range);
       const local: Comment = {
         id: `${PENDING_PREFIX}${pendingSeq}`,
-        status: 'open',
         author: { name: 'you' },
         createdAt: now,
         updatedAt: now,

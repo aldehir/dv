@@ -38,7 +38,6 @@ func ExportMarkdown(doc *model.CommentsDoc, w io.Writer) error {
 
 	for _, c := range doc.Comments {
 		fmt.Fprintf(b, "\n## %s\n\n", anchorLabel(c.Anchor))
-		fmt.Fprintf(b, "- Status: %s\n", c.Status)
 		fmt.Fprintf(b, "- Side: %s\n", sideDetail(c.Anchor.Side))
 		writeField(b, "- Language: %s\n", c.Anchor.Lang)
 		fmt.Fprintf(b, "- Author: %s\n", authorLabel(c.Author))
@@ -80,11 +79,11 @@ func ExportPrompt(doc *model.CommentsDoc, w io.Writer) error {
 	fmt.Fprintf(b, "\n%s follow.\n\n", describeCounts(doc.Comments))
 	fmt.Fprint(b, "Each comment gives a file, a line range on one side of the diff, the exact\n")
 	fmt.Fprint(b, "lines it refers to prefixed with their real line numbers, and the reviewer's\n")
-	fmt.Fprint(b, "note. Address each note, then set the comment's \"status\" to \"resolved\" in\n")
-	fmt.Fprint(b, "comments.json and append a reply saying what you changed.\n")
+	fmt.Fprint(b, "note. Address each note, then append a reply in comments.json saying what\n")
+	fmt.Fprint(b, "you changed.\n")
 
 	for i, c := range doc.Comments {
-		fmt.Fprintf(b, "\n## %d. %s (%s) — %s\n", i+1, promptAnchorLabel(c.Anchor), promptSide(c.Anchor), c.Status)
+		fmt.Fprintf(b, "\n## %d. %s (%s)\n", i+1, promptAnchorLabel(c.Anchor), promptSide(c.Anchor))
 		if note := anchorNote(c.ResolvedAnchor); note != "" {
 			fmt.Fprintf(b, "\n%s.\n", note)
 		}
@@ -262,41 +261,20 @@ func isHex(s string) bool {
 }
 
 func describeCounts(comments []model.Comment) string {
-	var open, resolved, wontfix, stale int
+	var stale int
 	for _, c := range comments {
-		switch c.Status {
-		case model.CommentResolved:
-			resolved++
-		case model.CommentWontFix:
-			wontfix++
-		default:
-			open++
-		}
 		if c.ResolvedAnchor != nil && c.ResolvedAnchor.Stale {
 			stale++
 		}
-	}
-	var detail []string
-	if open > 0 {
-		detail = append(detail, fmt.Sprintf("%d open", open))
-	}
-	if resolved > 0 {
-		detail = append(detail, fmt.Sprintf("%d resolved", resolved))
-	}
-	if wontfix > 0 {
-		detail = append(detail, fmt.Sprintf("%d wontfix", wontfix))
-	}
-	if stale > 0 {
-		detail = append(detail, fmt.Sprintf("%d stale", stale))
 	}
 	head := fmt.Sprintf("%d comments", len(comments))
 	if len(comments) == 1 {
 		head = "1 comment"
 	}
-	if len(detail) == 0 {
+	if stale == 0 {
 		return head
 	}
-	return fmt.Sprintf("%s (%s)", head, strings.Join(detail, ", "))
+	return fmt.Sprintf("%s (%d stale)", head, stale)
 }
 
 func oneLine(s string) string {

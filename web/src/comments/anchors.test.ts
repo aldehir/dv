@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { AnnotationSide, Comment, CommentStatus } from '../api/types';
+import type { AnnotationSide, Comment } from '../api/types';
 import {
   FILE_LEVEL_LINE,
   annotationSignature,
@@ -21,7 +21,7 @@ interface CommentOverrides {
   side?: AnnotationSide;
   startLine?: number;
   endLine?: number;
-  status?: CommentStatus;
+  updatedAt?: string;
   stale?: boolean;
   path?: string;
   replies?: number;
@@ -32,16 +32,15 @@ const comment = ({
   side = 'additions',
   startLine = 42,
   endLine = 47,
-  status = 'open',
+  updatedAt = '2026-07-26T18:04:11Z',
   stale = false,
   path = 'internal/gitx/blob.go',
   replies = 0,
 }: CommentOverrides = {}): Comment => ({
   id,
-  status,
   author: { name: 'Alde Rojas' },
   createdAt: '2026-07-26T18:00:00Z',
-  updatedAt: '2026-07-26T18:04:11Z',
+  updatedAt,
   body: 'retries forever',
   anchor: {
     path,
@@ -74,7 +73,6 @@ describe('threadFor', () => {
       startLine: 42,
       endLine: 47,
       lineNumber: 47,
-      status: 'open',
       stale: false,
       pending: false,
     });
@@ -192,15 +190,15 @@ describe('lineAnnotationsFor', () => {
 });
 
 describe('annotationSignature', () => {
-  it('changes when a status or reply count changes', () => {
+  it('changes when an edit or a reply lands', () => {
     const base = annotationSignature(annotationsFor([threadFor('f1', comment())]));
-    const resolved = annotationSignature(
-      annotationsFor([threadFor('f1', comment({ status: 'resolved' }))]),
+    const edited = annotationSignature(
+      annotationsFor([threadFor('f1', comment({ updatedAt: '2026-07-26T19:00:00Z' }))]),
     );
     const replied = annotationSignature(
       annotationsFor([threadFor('f1', comment({ replies: 1 }))]),
     );
-    expect(resolved).not.toBe(base);
+    expect(edited).not.toBe(base);
     expect(replied).not.toBe(base);
   });
 

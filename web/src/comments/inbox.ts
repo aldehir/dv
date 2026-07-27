@@ -8,29 +8,12 @@ import type { Thread } from './anchors';
 import type { CommentsStore } from './store';
 import { locationLabel } from './thread';
 
-export type InboxFilter = 'all' | 'open' | 'resolved' | 'stale';
-
-export const INBOX_FILTERS: readonly InboxFilter[] = ['all', 'open', 'resolved', 'stale'];
-
 export interface InboxDeps {
   store: AppStore;
   bus: Bus;
   comments: CommentsStore;
   viewer: Viewer;
 }
-
-export const matchesFilter = (thread: Thread, filter: InboxFilter): boolean => {
-  switch (filter) {
-    case 'open':
-      return thread.status === 'open';
-    case 'resolved':
-      return thread.status !== 'open';
-    case 'stale':
-      return thread.stale;
-    default:
-      return true;
-  }
-};
 
 const preview = (body: string): string => {
   const collapsed = body.replace(/\s+/g, ' ').trim();
@@ -39,7 +22,6 @@ const preview = (body: string): string => {
 
 export const createInbox = ({ store, bus, comments, viewer }: InboxDeps): Component<void> => {
   const disposer = createDisposer();
-  let filter: InboxFilter = 'all';
   let visible: Thread[] = [];
   let focused: string | null = null;
 
@@ -53,19 +35,9 @@ export const createInbox = ({ store, bus, comments, viewer }: InboxDeps): Compon
     staleList,
   );
 
-  const buttons = INBOX_FILTERS.map((name) =>
-    el('button', {
-      class: 'dv-btn dv-inbox__filter',
-      type: 'button',
-      textContent: name,
-      data: { filter: name },
-    }),
-  );
-
   const root = el(
     'div',
     { class: 'dv-inbox' },
-    el('div', { class: 'dv-inbox__head' }, ...buttons),
     meta,
     el('section', { class: 'dv-inbox__section' }, anchoredList),
     staleSection,
@@ -89,7 +61,6 @@ export const createInbox = ({ store, bus, comments, viewer }: InboxDeps): Compon
       el(
         'span',
         { class: 'dv-inbox__tags' },
-        el('span', { class: 'dv-inbox__status', textContent: thread.status }),
         thread.stale && el('span', { class: 'dv-thread__badge', textContent: 'stale' }),
       ),
     );
@@ -101,14 +72,9 @@ export const createInbox = ({ store, bus, comments, viewer }: InboxDeps): Compon
     const enabled = store.get().commentsEnabled;
     root.hidden = !enabled;
     const all = enabled ? comments.threads() : [];
-    const matching = all.filter((thread) => matchesFilter(thread, filter));
-    const anchored = matching.filter((thread) => !thread.stale);
-    const stale = matching.filter((thread) => thread.stale);
+    const anchored = all.filter((thread) => !thread.stale);
+    const stale = all.filter((thread) => thread.stale);
     visible = [...anchored, ...stale];
-
-    for (const button of buttons) {
-      button.setAttribute('aria-pressed', String(button.dataset.filter === filter));
-    }
 
     clear(anchoredList);
     anchoredList.appendChild(frag(...anchored.map(row)));
@@ -119,7 +85,7 @@ export const createInbox = ({ store, bus, comments, viewer }: InboxDeps): Compon
     const failure = comments.error();
     if (failure !== null) meta.textContent = failure;
     else if (all.length === 0) meta.textContent = 'No comments yet';
-    else meta.textContent = `${visible.length} of ${all.length} comments`;
+    else meta.textContent = `${all.length} comment${all.length === 1 ? '' : 's'}`;
   };
 
   const focus = (thread: Thread): void => {
@@ -141,12 +107,6 @@ export const createInbox = ({ store, bus, comments, viewer }: InboxDeps): Compon
     on(root, 'click', (event) => {
       const target = event.target;
       if (!(target instanceof HTMLElement)) return;
-      const filterButton = target.closest<HTMLElement>('[data-filter]');
-      if (filterButton?.dataset.filter) {
-        filter = filterButton.dataset.filter as InboxFilter;
-        render();
-        return;
-      }
       const id = target.closest<HTMLElement>('[data-comment-id]')?.dataset.commentId;
       const thread = id === undefined ? undefined : visible.find((item) => item.id === id);
       if (thread) focus(thread);

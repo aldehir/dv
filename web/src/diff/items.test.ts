@@ -52,12 +52,10 @@ const thread = (id: string): Thread => ({
   lineNumber: 5,
   startLine: 5,
   endLine: 5,
-  status: 'open',
   stale: false,
   pending: false,
   comment: {
     id,
-    status: 'open',
     author: { name: 'alde' },
     createdAt: '2026-07-26T00:00:00Z',
     updatedAt: '2026-07-26T00:00:00Z',

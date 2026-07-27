@@ -20,7 +20,7 @@ func seedFile(t *testing.T) string {
 		UpdatedAt: "2026-07-26T18:04:11Z",
 		Comments: []model.Comment{
 			{
-				ID: "cmt_open", Status: model.CommentOpen,
+				ID: "cmt_open",
 				Author: model.Author{Name: "Alde", Email: "alde@example.com"},
 				Body:   "retries forever",
 				Anchor: model.Anchor{
@@ -32,7 +32,7 @@ func seedFile(t *testing.T) string {
 				Replies:        []model.Reply{{ID: "rpl_1", Author: model.Author{Name: "agent"}, Body: "fixed\nin 3f1a"}},
 			},
 			{
-				ID: "cmt_done", Status: model.CommentResolved,
+				ID: "cmt_done",
 				Author: model.Author{Name: "Alde"},
 				Body:   "nit: naming",
 				Anchor: model.Anchor{
@@ -72,13 +72,7 @@ func TestListFilters(t *testing.T) {
 		{
 			name: "everything",
 			argv: []string{"list", "--comments", path},
-			want: []string{"internal/gitx/blob.go:42-44", "[open]", "web/src/main.ts:7", "2 of 2 comments"},
-		},
-		{
-			name:    "by status",
-			argv:    []string{"list", "--comments", path, "--status", "resolved"},
-			want:    []string{"web/src/main.ts:7", "1 of 2 comments"},
-			notWant: []string{"internal/gitx/blob.go"},
+			want: []string{"internal/gitx/blob.go:42-44", "cmt_open", "web/src/main.ts:7", "2 of 2 comments"},
 		},
 		{
 			name:    "by glob",
@@ -176,7 +170,7 @@ func TestUsageErrors(t *testing.T) {
 	cases := [][]string{
 		{},
 		{"nonsense"},
-		{"list", "--comments", path, "--status", "maybe"},
+		{"list", "--comments", path, "--nonsense"},
 		{"export", "--comments", path, "--format", "pdf"},
 	}
 	for _, argv := range cases {

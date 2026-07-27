@@ -1,11 +1,5 @@
 import type { DiffLineAnnotation, LineAnnotation } from '@pierre/diffs';
-import type {
-  AnnotationSide,
-  Anchor,
-  Comment,
-  CommentStatus,
-  NewCommentRequest,
-} from '../api/types';
+import type { AnnotationSide, Anchor, Comment, NewCommentRequest } from '../api/types';
 import type { LineRange } from '../core/store';
 
 export const FILE_LEVEL_LINE = 0;
@@ -20,7 +14,6 @@ export interface Thread {
   lineNumber: number;
   startLine: number;
   endLine: number;
-  status: CommentStatus;
   stale: boolean;
   pending: boolean;
   comment: Comment;
@@ -63,7 +56,6 @@ export const threadFor = (fileId: string, comment: Comment, pending = false): Th
     lineNumber: endLine,
     startLine: positiveLine(anchor.startLine) || endLine,
     endLine,
-    status: comment.status,
     stale: comment.resolvedAnchor?.stale === true,
     pending,
     comment,
@@ -135,7 +127,7 @@ export const threadsFrom = (
 const cardSignature = (card: Card): string =>
   card.kind === 'draft'
     ? `draft:${card.key}`
-    : `${card.id}:${card.status}:${card.comment.updatedAt}:${card.comment.replies.length}`;
+    : `${card.id}:${card.comment.updatedAt}:${card.comment.replies.length}`;
 
 export const annotationSignature = (annotations: readonly CardAnnotation[]): string =>
   annotations

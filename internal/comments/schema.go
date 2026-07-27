@@ -16,14 +16,6 @@ func validSide(s model.AnnotationSide) bool {
 	return s == model.SideAdditions || s == model.SideDeletions
 }
 
-func validStatus(s model.CommentStatus) bool {
-	switch s {
-	case model.CommentOpen, model.CommentResolved, model.CommentWontFix:
-		return true
-	}
-	return false
-}
-
 func validateAnchor(a model.Anchor) error {
 	if strings.TrimSpace(a.Path) == "" {
 		return errors.New("anchor has no path")
@@ -81,10 +73,6 @@ func repair(doc *model.CommentsDoc, now string, fallback model.Author) []string 
 	}
 	for i := range doc.Comments {
 		c := &doc.Comments[i]
-		if !validStatus(c.Status) {
-			note("comment %s had status %q, reset to %q", c.ID, c.Status, model.CommentOpen)
-			c.Status = model.CommentOpen
-		}
 		if strings.TrimSpace(c.Author.Name) == "" {
 			if fallback.Name != "" {
 				c.Author = fallback
