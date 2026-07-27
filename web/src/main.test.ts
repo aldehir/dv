@@ -1,6 +1,16 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
+
+class StubResizeObserver implements ResizeObserver {
+  observe(): void {}
+  unobserve(): void {}
+  disconnect(): void {}
+}
 
 describe('boot', () => {
+  beforeAll(() => {
+    vi.stubGlobal('ResizeObserver', StubResizeObserver);
+  });
+
   it('renders the shell against an unreachable api', async () => {
     document.body.replaceChildren();
     const host = document.createElement('div');
@@ -20,6 +30,7 @@ describe('boot', () => {
     expect(host.querySelector('.dv-tree__filter')).not.toBeNull();
     expect(host.querySelector('.dv-status')).not.toBeNull();
     expect(host.querySelector('#dv-diff')).not.toBeNull();
+    expect(host.querySelector('.dv-inbox')).not.toBeNull();
 
     await vi.waitFor(() => {
       expect(host.querySelector('.dv-shell__placeholder')?.textContent).toBe(
