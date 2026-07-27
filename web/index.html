@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en" data-flavor="mocha" style="color-scheme: dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="dv-token" content="__DV_TOKEN__" />
+    <title>dv</title>
+    <script>
+      (function () {
+        var flavors = ['latte', 'frappe', 'macchiato', 'mocha'];
+        var pref = null;
+        try {
+          pref = localStorage.getItem('dv:theme');
+        } catch (error) {
+          pref = null;
+        }
+        if (flavors.indexOf(pref) < 0) {
+          pref = matchMedia('(prefers-color-scheme: dark)').matches ? 'mocha' : 'latte';
+        }
+        var root = document.documentElement;
+        root.dataset.flavor = pref;
+        root.style.colorScheme = pref === 'latte' ? 'light' : 'dark';
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

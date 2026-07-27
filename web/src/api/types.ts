@@ -19,7 +19,7 @@ export type ThemePref = Flavor | 'auto';
 export type ViewMode = 'split' | 'unified';
 
 export interface Defaults {
-  theme: ThemePref;
+  theme: ThemePref | '';
   view: ViewMode;
   wrap: boolean;
 }
