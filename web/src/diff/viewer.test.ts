@@ -2,10 +2,11 @@ import { CodeView } from '@pierre/diffs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Comment, FilePayload, Manifest } from '../api/types';
 import type { Card, Thread } from '../comments/anchors';
-import { threadFor } from '../comments/anchors';
+import { draftFor, threadFor } from '../comments/anchors';
 import type { CommentsStore } from '../comments/store';
 import { createBus } from '../core/bus';
 import { createInitialState, createStore } from '../core/store';
+import type { AnnotationRenderer } from './options';
 import type { Viewer } from './viewer';
 import { createViewer } from './viewer';
 
@@ -142,6 +143,29 @@ const bench = (): Bench => {
   };
 };
 
+/** The callback the diff uses to draw an annotation, as the viewer built it. */
+const renderer = (harness: Bench) => {
+  const setOptions = vi.spyOn(harness.view(), 'setOptions');
+  harness.store.set({ wrap: !harness.store.get().wrap });
+  const built = setOptions.mock.calls.at(-1)?.[0];
+  setOptions.mockRestore();
+  if (!built?.renderAnnotation) throw new Error('no renderAnnotation was built');
+  // The view hands the callback an item handle the viewer has no use for.
+  return built.renderAnnotation as AnnotationRenderer;
+};
+
+/** Draws the draft box for a range the way the diff would, attached. */
+const drawDraft = (harness: Bench, id: string, range: Parameters<typeof draftFor>[1]) => {
+  const element = renderer(harness)({
+    side: 'additions',
+    lineNumber: Math.max(range.start, range.end),
+    metadata: [draftFor(id, range)],
+  });
+  if (!element) throw new Error('expected a draft box');
+  document.body.appendChild(element);
+  return element.querySelector('textarea');
+};
+
 const ids = (view: CodeView<Card[]>): string[] => {
   const found: string[] = [];
   for (const id of ['f1', 'f2', 'f3']) if (view.getItem(id)) found.push(id);
@@ -231,6 +255,56 @@ describe('createViewer', () => {
 
     harness.store.set({ composing: null });
     expect(harness.view().getItem('f1')?.annotations?.length).toBe(0);
+    harness.viewer.destroy();
+  });
+
+  it('leaves the range alone when a comment already covers it', () => {
+    const harness = bench();
+    harness.bus.emit('file:payload', payload('f1', 'src/f1.ts'));
+    harness.store.set({ commentsEnabled: true });
+    harness.setThreads([threadFor('f1', comment('c1'))]);
+
+    // The inbox jumps here by selecting the comment's own lines.
+    harness.store.set({ composing: { id: 'f1', range: { start: 2, end: 2 } } });
+    const covered = harness.view().getItem('f1')?.annotations ?? [];
+    expect(covered[0]?.metadata?.map((card) => card.kind)).toEqual(['thread']);
+
+    harness.store.set({ composing: { id: 'f1', range: { start: 1, end: 2 } } });
+    const wider = harness.view().getItem('f1')?.annotations ?? [];
+    expect(wider[0]?.metadata?.map((card) => card.kind)).toEqual(['thread', 'draft']);
+    harness.viewer.destroy();
+  });
+
+  it('puts the caret in the draft box once the diff draws it', async () => {
+    const harness = bench();
+    harness.bus.emit('file:payload', payload('f1', 'src/f1.ts'));
+    harness.store.set({ commentsEnabled: true });
+    const range = { start: 2, end: 2, side: 'additions' as const };
+
+    harness.store.set({ composing: { id: 'f1', range } });
+    const input = drawDraft(harness, 'f1', range);
+    // The diff hangs the box in the DOM after asking for it, so the focus waits.
+    await Promise.resolve();
+
+    expect(document.activeElement).toBe(input);
+    harness.viewer.destroy();
+  });
+
+  it('leaves a box drawn for another range alone', async () => {
+    const harness = bench();
+    harness.bus.emit('file:payload', payload('f1', 'src/f1.ts'));
+    harness.store.set({ commentsEnabled: true });
+    const range = { start: 2, end: 2, side: 'additions' as const };
+
+    harness.store.set({ composing: { id: 'f1', range } });
+    const input = drawDraft(harness, 'f1', range);
+    await Promise.resolve();
+    input?.blur();
+
+    harness.store.set({ composing: { id: 'f1', range: { ...range, start: 1 } } });
+    await Promise.resolve();
+
+    expect(document.activeElement).not.toBe(input);
     harness.viewer.destroy();
   });
 

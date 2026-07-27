@@ -3,7 +3,14 @@ import { CodeView } from '@pierre/diffs';
 import { getOrCreateWorkerPoolSingleton } from '@pierre/diffs/worker';
 import type { FilePayload } from '../api/types';
 import type { Card, CardAnnotation, Draft, Thread } from '../comments/anchors';
-import { annotationSignature, annotationsFor, draftFor, rangeFor } from '../comments/anchors';
+import {
+  anchoredThreads,
+  annotationSignature,
+  annotationsFor,
+  draftFor,
+  draftKeyFor,
+  rangeFor,
+} from '../comments/anchors';
 import type { CommentsStore } from '../comments/store';
 import { DRAFT_INPUT_CLASS, createCardList } from '../comments/thread';
 import type { Bus } from '../core/bus';
@@ -68,6 +75,9 @@ const workerManager = (
   }
 };
 
+const draftKeyIn = (cards: readonly Card[]): string | null =>
+  cards.find((card): card is Draft => card.kind === 'draft')?.key ?? null;
+
 const sameRange = (left: LineRange, right: LineRange): boolean =>
   left.start === right.start &&
   left.end === right.end &&
@@ -98,6 +108,8 @@ export const createViewer = ({
   let pendingFile: string | null = null;
   let pendingRange: { selection: LineSelection; align: RevealAlign } | null = null;
   let draftInput: HTMLTextAreaElement | null = null;
+  /** Which draft the box above belongs to, so a stale one never takes the focus. */
+  let draftKey: string | null = null;
   let focusWhenDrawn = false;
 
   const renderAnnotation = (annotation: { metadata: Card[] }): HTMLElement | undefined => {
@@ -106,9 +118,14 @@ export const createViewer = ({
     const input = element.querySelector<HTMLTextAreaElement>(`.${DRAFT_INPUT_CLASS}`);
     if (input) {
       draftInput = input;
+      draftKey = draftKeyIn(annotation.metadata);
       if (focusWhenDrawn) {
         focusWhenDrawn = false;
-        input.focus({ preventScroll: true });
+        // The diff hangs this element in the DOM once we hand it back, and a
+        // detached box cannot hold the caret.
+        queueMicrotask(() => {
+          if (input.isConnected) input.focus({ preventScroll: true });
+        });
       }
     }
     return element;
@@ -124,7 +141,26 @@ export const createViewer = ({
   const draftAt = (fileId: string): Draft | null => {
     const { commentsEnabled, composing } = store.get();
     if (!commentsEnabled || composing === null || composing.id !== fileId) return null;
-    return draftFor(fileId, composing.range);
+    const draft = draftFor(fileId, composing.range);
+    // A comment already anchored to these exact lines is the box for them.
+    // Jumping to one from the inbox selects its range, and a second empty box
+    // stacked underneath is not what the reader asked for.
+    const taken = anchoredThreads(comments.threadsFor(fileId)).some(
+      (thread) => draftKeyFor(fileId, rangeFor(thread)) === draft.key,
+    );
+    return taken ? null : draft;
+  };
+
+  /** Move into the draft box, or arm the focus for when the diff draws it. */
+  const focusDraft = (): void => {
+    const composing = store.get().composing;
+    const draft = composing === null ? null : draftAt(composing.id);
+    if (draft === null) return;
+    if (draft.key === draftKey && draftInput?.isConnected === true) {
+      draftInput.focus({ preventScroll: true });
+      return;
+    }
+    focusWhenDrawn = true;
   };
 
   const applyOptions = (): void => {
@@ -279,13 +315,7 @@ export const createViewer = ({
     }),
   );
   disposer.add(bus.on('hunk:step', ({ delta }) => stepHunk(delta)));
-  disposer.add(
-    bus.on('draft:focus', () => {
-      // The box may not have been drawn yet when the range was just deep-linked.
-      if (draftInput?.isConnected === true) draftInput.focus({ preventScroll: true });
-      else focusWhenDrawn = true;
-    }),
-  );
+  disposer.add(bus.on('draft:focus', focusDraft));
   disposer.add(
     bus.on('theme:changed', () => {
       applyOptions();
@@ -304,9 +334,12 @@ export const createViewer = ({
     store.subscribe('composing', (composing) => {
       if (composing === null) {
         draftInput = null;
+        draftKey = null;
         focusWhenDrawn = false;
       }
       refreshAnnotations();
+      // A settled range means the user is ready to write: open the box focused.
+      if (composing !== null) focusDraft();
     }),
   );
   disposer.add(
