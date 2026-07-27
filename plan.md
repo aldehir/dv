@@ -638,12 +638,30 @@ The hard part. When the diff changes underneath a comment (rebase, new commit,
    numbers verbatim.
 2. Otherwise search the current side's content for `quote`.
    Exactly one match → **re-anchor**, record `movedFrom: {startLine, endLine}`.
-3. Zero or >1 matches → **`stale: true`**. Keep the comment, render it in the
-   sidebar inbox under "unanchored", and never silently drop it — a discarded
-   human review comment is the worst possible failure mode here.
+3. Zero or >1 matches → **`stale: true`**. Keep the comment and render it in the
+   sidebar inbox under "unanchored" so a comment that goes stale mid-session is
+   still in front of the reviewer.
 
 Whitespace-insensitive fallback matching before declaring stale; log which rule
 fired so the behaviour is debuggable.
+
+**The startup clean.** Staleness is a live-session state, not something a file
+should accumulate. The one-shot pass in `prepareComments` re-anchors and then
+*drops* two kinds of comment, reporting the count on stderr:
+
+1. Anything still `stale` after the resolve above.
+2. Anything anchored to a file **the current diff does not touch**, matched
+   against the manifest under both its path and its `prevPath`.
+
+Rule 2 is the one that does the work when a file outlives its revspec. Such a
+comment is not stale in the §8.3 sense at all — its blob is sitting in the tree
+untouched, so it resolves *exactly* — but the diff has no row to hang it on, so
+keeping it only clutters the inbox. Anchoring alone cannot see this: `SideContent`
+reads any path in the tree, not just the ones in the diff.
+
+The clean therefore runs after the manifest is built, and only there: the
+per-request resolve behind `GET /api/comments` and the SSE push leave stale
+comments alone, so a comment that goes stale mid-session stays visible.
 
 ### 8.4 Agent round-trip
 

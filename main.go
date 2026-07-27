@@ -71,9 +71,6 @@ func run(argv []string) int {
 	if err != nil {
 		return reportFatal(err)
 	}
-	if store != nil {
-		prepareComments(repo, spec, store, log)
-	}
 
 	token, err := token()
 	if err != nil {
@@ -108,6 +105,11 @@ func run(argv []string) int {
 		return reportFatal(err)
 	}
 	fmt.Fprintf(os.Stderr, "dv: %s\n", summarize(manifest))
+
+	// After the manifest: the clean drops comments this diff has no row for.
+	if store != nil {
+		prepareComments(repo, spec, store, manifest, log)
+	}
 
 	url, err := srv.Listen()
 	if err != nil {
@@ -170,7 +172,7 @@ func openStore(cfg config.Config, repo *gitx.Repo, spec *gitx.RevSpec, log *slog
 	})
 }
 
-func prepareComments(repo *gitx.Repo, spec *gitx.RevSpec, store *comments.Store, log *slog.Logger) {
+func prepareComments(repo *gitx.Repo, spec *gitx.RevSpec, store *comments.Store, manifest *model.Manifest, log *slog.Logger) {
 	if !store.Exists() {
 		return
 	}
@@ -183,11 +185,19 @@ func prepareComments(repo *gitx.Repo, spec *gitx.RevSpec, store *comments.Store,
 		fmt.Fprintf(os.Stderr, "dv: %s was unreadable, moved it to %s and started a fresh one\n", store.Path(), report.QuarantinePath)
 	}
 	if missing := unreachableRevs(repo, doc.Spec); len(missing) > 0 {
-		fmt.Fprintf(os.Stderr, "dv: %s was written against %s, which this repo no longer has — loading it anyway, unmatched comments will be marked stale\n",
+		fmt.Fprintf(os.Stderr, "dv: %s was written against %s, which this repo no longer has — loading it anyway, comments that no longer match will be dropped\n",
 			store.Path(), strings.Join(missing, " and "))
 	}
-	if _, err := server.Reanchor(store, server.NewContentResolver(repo, spec), log); err != nil {
+	dropped, _, err := server.Reanchor(store, server.NewContentResolver(repo, spec), manifest, log)
+	if err != nil {
 		fmt.Fprintf(os.Stderr, "dv: cannot re-anchor the comments in %s: %v\n", store.Path(), err)
+	}
+	if n := len(dropped); n > 0 {
+		noun := "comments"
+		if n == 1 {
+			noun = "comment"
+		}
+		fmt.Fprintf(os.Stderr, "dv: dropped %d %s from %s that this diff does not cover\n", n, noun, store.Path())
 	}
 }
 

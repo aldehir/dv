@@ -56,44 +56,66 @@ type replyRequest struct {
 	Body string `json:"body"`
 }
 
-func Reanchor(store *comments.Store, resolver comments.ContentResolver, log *slog.Logger) (bool, error) {
-	if store == nil || !store.Exists() {
-		return false, nil
-	}
-	_, _, changed, err := resolveAndPersist(store, resolver, log)
-	return changed, err
+type resolution struct {
+	doc     *model.CommentsDoc
+	etag    string
+	dropped []model.Comment
+	changed bool
 }
 
-func resolveAndPersist(store *comments.Store, resolver comments.ContentResolver, log *slog.Logger) (*model.CommentsDoc, string, bool, error) {
+// Reanchor re-resolves every anchor against the current diff and drops the
+// comments it cannot show — the unanchorable ones, and the ones whose file the
+// manifest does not cover. A nil manifest keeps every path. It reports what it
+// dropped and whether the file on disk changed.
+func Reanchor(store *comments.Store, resolver comments.ContentResolver, manifest *model.Manifest, log *slog.Logger) ([]model.Comment, bool, error) {
+	if store == nil || !store.Exists() {
+		return nil, false, nil
+	}
+	var paths comments.PathSet
+	if manifest != nil {
+		paths = comments.NewPathSet(manifest.Files)
+	}
+	out, err := resolveAndPersist(store, resolver, log, paths, true)
+	return out.dropped, out.changed, err
+}
+
+// resolveAndPersist re-resolves the anchors and writes the document back if
+// that changed it. Cleaning is for the one-shot startup pass: a comment that
+// goes stale while dv is running stays put so the inbox can still surface it.
+func resolveAndPersist(store *comments.Store, resolver comments.ContentResolver, log *slog.Logger, paths comments.PathSet, clean bool) (resolution, error) {
 	doc, etag, err := store.Load()
 	if err != nil {
-		return nil, "", false, err
+		return resolution{}, err
 	}
 	before, err := json.Marshal(doc)
 	if err != nil {
-		return nil, "", false, err
+		return resolution{}, err
 	}
 	if err := store.Resolve(doc, resolver); err != nil {
-		return nil, "", false, err
+		return resolution{}, err
+	}
+	var dropped []model.Comment
+	if clean {
+		dropped = store.PruneStale(doc, paths)
 	}
 	after, err := json.Marshal(doc)
 	if err != nil {
-		return nil, "", false, err
+		return resolution{}, err
 	}
 	if bytes.Equal(before, after) {
-		return doc, etag, false, nil
+		return resolution{doc: doc, etag: etag}, nil
 	}
 	saved, err := store.Save(doc, etag)
 	if err != nil {
 		log.Warn("cannot persist the re-anchored comments", "path", store.Path(), "error", err)
-		return doc, etag, false, nil
+		return resolution{doc: doc, etag: etag}, nil
 	}
-	return doc, saved, true, nil
+	return resolution{doc: doc, etag: saved, dropped: dropped, changed: true}, nil
 }
 
 func (s *Server) snapshot() (*model.CommentsDoc, string, error) {
-	doc, etag, _, err := resolveAndPersist(s.opts.Store, s.resolver, s.log)
-	return doc, etag, err
+	out, err := resolveAndPersist(s.opts.Store, s.resolver, s.log, nil, false)
+	return out.doc, out.etag, err
 }
 
 func (s *Server) commentsEnabled(w http.ResponseWriter) bool {

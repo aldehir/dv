@@ -394,3 +394,119 @@ func TestResolvedAnchorSurvivesASaveRoundTrip(t *testing.T) {
 		t.Errorf("movedFrom = %#v, want 4-5", got.ResolvedAnchor.MovedFrom)
 	}
 }
+
+func TestPruneStaleDropsOnlyTheUnanchorable(t *testing.T) {
+	anchored := drainComment()
+	anchored.ID = "cmt_anchored"
+
+	r := newFakeResolver()
+	r.set("internal/gitx/blob.go", model.SideAdditions, "newsha", drainAfter)
+	r.set("internal/gitx/patch.go", model.SideAdditions, "newsha", "package gitx\n\nfunc nothing() {}\n")
+
+	stale := drainComment()
+	stale.ID = "cmt_stale"
+	stale.Anchor.Path = "internal/gitx/patch.go"
+
+	doc := docWith(anchored, stale)
+	s := newTestStore(t)
+	if err := s.Resolve(doc, r); err != nil {
+		t.Fatalf("Resolve: %v", err)
+	}
+
+	dropped := s.PruneStale(doc, nil)
+	if len(dropped) != 1 || dropped[0].ID != "cmt_stale" {
+		t.Fatalf("dropped = %+v, want just cmt_stale", dropped)
+	}
+	if dropped[0].Body == "" {
+		t.Error("the dropped comment should come back whole so the caller can report it")
+	}
+	if len(doc.Comments) != 1 || doc.Comments[0].ID != "cmt_anchored" {
+		t.Fatalf("kept = %+v, want just cmt_anchored", doc.Comments)
+	}
+}
+
+func TestPruneStaleOnAnAllStaleDocLeavesAnEmptySlice(t *testing.T) {
+	r := newFakeResolver()
+	r.fail("internal/gitx/blob.go", model.SideAdditions, errors.New("blob is too large"))
+
+	doc := docWith(drainComment())
+	s := newTestStore(t)
+	if err := s.Resolve(doc, r); err != nil {
+		t.Fatalf("Resolve: %v", err)
+	}
+	if len(s.PruneStale(doc, nil)) != 1 {
+		t.Fatal("an unresolvable comment should be dropped")
+	}
+	if doc.Comments == nil {
+		t.Fatal("comments must stay an empty slice, never nil, so it serialises as []")
+	}
+	if len(doc.Comments) != 0 {
+		t.Fatalf("comments = %+v, want empty", doc.Comments)
+	}
+}
+
+func TestPruneStaleDropsAnchorsOutsideTheDiff(t *testing.T) {
+	r := newFakeResolver()
+	r.set("internal/gitx/blob.go", model.SideAdditions, "oldsha", drainAfter)
+	r.set("internal/gitx/patch.go", model.SideAdditions, "oldsha", drainAfter)
+
+	inside := drainComment()
+	inside.ID = "cmt_inside"
+
+	outside := drainComment()
+	outside.ID = "cmt_outside"
+	outside.Anchor.Path = "internal/gitx/patch.go"
+
+	doc := docWith(inside, outside)
+	s := newTestStore(t)
+	if err := s.Resolve(doc, r); err != nil {
+		t.Fatalf("Resolve: %v", err)
+	}
+	for _, c := range doc.Comments {
+		if c.ResolvedAnchor.Stale {
+			t.Fatalf("%s is stale, the test needs both anchors to resolve cleanly", c.ID)
+		}
+	}
+
+	paths := NewPathSet([]model.FileEntry{{Path: "internal/gitx/blob.go"}})
+	dropped := s.PruneStale(doc, paths)
+	if len(dropped) != 1 || dropped[0].ID != "cmt_outside" {
+		t.Fatalf("dropped = %+v, want just cmt_outside", dropped)
+	}
+	if len(doc.Comments) != 1 || doc.Comments[0].ID != "cmt_inside" {
+		t.Fatalf("kept = %+v, want just cmt_inside", doc.Comments)
+	}
+}
+
+func TestPathSetCoversRenamesFromEitherSide(t *testing.T) {
+	paths := NewPathSet([]model.FileEntry{{Path: "internal/gitx/blob.go", PrevPath: "internal/gitx/old_blob.go"}})
+
+	renamed := drainComment().Anchor
+	if !paths.covers(renamed) {
+		t.Error("an anchor on the new name should be covered")
+	}
+
+	old := drainComment().Anchor
+	old.Path = "internal/gitx/old_blob.go"
+	if !paths.covers(old) {
+		t.Error("an anchor still on the pre-rename name should be covered")
+	}
+
+	viaPrev := drainComment().Anchor
+	viaPrev.Path = "internal/gitx/gone.go"
+	prev := "internal/gitx/old_blob.go"
+	viaPrev.PrevPath = &prev
+	if !paths.covers(viaPrev) {
+		t.Error("an anchor whose prevPath is in the diff should be covered")
+	}
+
+	elsewhere := drainComment().Anchor
+	elsewhere.Path = "internal/gitx/patch.go"
+	if paths.covers(elsewhere) {
+		t.Error("an anchor on an untouched file should not be covered")
+	}
+
+	if !PathSet(nil).covers(elsewhere) {
+		t.Error("a nil set means every path")
+	}
+}

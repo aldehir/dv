@@ -46,6 +46,84 @@ func (s *Store) Resolve(doc *model.CommentsDoc, r ContentResolver) error {
 	return nil
 }
 
+// PathSet is the set of file paths the current diff covers. A nil set means
+// "every path", for callers that have no manifest to hand.
+type PathSet map[string]struct{}
+
+// NewPathSet collects the paths a diff touches, under both their current and
+// their pre-rename name.
+func NewPathSet(files []model.FileEntry) PathSet {
+	set := make(PathSet, len(files)*2)
+	for _, f := range files {
+		if f.Path != "" {
+			set[f.Path] = struct{}{}
+		}
+		if f.PrevPath != "" {
+			set[f.PrevPath] = struct{}{}
+		}
+	}
+	return set
+}
+
+func (p PathSet) covers(a model.Anchor) bool {
+	if p == nil {
+		return true
+	}
+	if _, ok := p[a.Path]; ok {
+		return true
+	}
+	if a.PrevPath == nil || *a.PrevPath == "" {
+		return false
+	}
+	_, ok := p[*a.PrevPath]
+	return ok
+}
+
+// PruneStale drops the comments this diff cannot show: the ones whose quote no
+// longer resolves, and the ones anchored to a file the diff does not touch. It
+// returns what it dropped. Resolve must have run first.
+//
+// The second rule is the one that matters when a file is loaded after the
+// revspec moved on. Such a comment resolves perfectly well — its blob is still
+// in the tree, untouched — but the diff has no row to hang it on, so it can
+// only clutter the inbox.
+func (s *Store) PruneStale(doc *model.CommentsDoc, paths PathSet) []model.Comment {
+	if doc == nil {
+		return nil
+	}
+	var dropped []model.Comment
+	kept := make([]model.Comment, 0, len(doc.Comments))
+	for _, c := range doc.Comments {
+		stale := c.ResolvedAnchor != nil && c.ResolvedAnchor.Stale
+		outside := !paths.covers(c.Anchor)
+		if !stale && !outside {
+			kept = append(kept, c)
+			continue
+		}
+		reason := "the anchor no longer resolves"
+		if outside {
+			reason = "the file is not in this diff"
+		}
+		s.log.Info("dropped a comment",
+			"id", c.ID,
+			"path", c.Anchor.Path,
+			"side", c.Anchor.Side,
+			"rule", ruleOf(c),
+			"reason", reason,
+		)
+		dropped = append(dropped, c)
+	}
+	doc.Comments = kept
+	return dropped
+}
+
+func ruleOf(c model.Comment) string {
+	if c.ResolvedAnchor == nil {
+		return ""
+	}
+	return c.ResolvedAnchor.Rule
+}
+
 func resolveComment(c *model.Comment, cache *contentCache) {
 	a := &c.Anchor
 

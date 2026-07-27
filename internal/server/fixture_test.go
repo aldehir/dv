@@ -253,6 +253,39 @@ func (h *harness) commentsPath() string {
 	return h.store.Path()
 }
 
+func (h *harness) manifest(t *testing.T) *model.Manifest {
+	t.Helper()
+	m, err := h.server.Manifest()
+	if err != nil {
+		t.Fatalf("manifest: %v", err)
+	}
+	return m
+}
+
+func (h *harness) readDoc(t *testing.T) model.CommentsDoc {
+	t.Helper()
+	raw, err := os.ReadFile(h.commentsPath())
+	if err != nil {
+		t.Fatalf("read comments file: %v", err)
+	}
+	var doc model.CommentsDoc
+	if err := json.Unmarshal(raw, &doc); err != nil {
+		t.Fatalf("unmarshal comments file: %v", err)
+	}
+	return doc
+}
+
+func (h *harness) writeDoc(t *testing.T, doc model.CommentsDoc) {
+	t.Helper()
+	raw, err := json.MarshalIndent(&doc, "", "  ")
+	if err != nil {
+		t.Fatalf("marshal comments file: %v", err)
+	}
+	if err := os.WriteFile(h.commentsPath(), raw, 0o644); err != nil {
+		t.Fatalf("write comments file: %v", err)
+	}
+}
+
 func wantStatus(t *testing.T, res *http.Response, want int) {
 	t.Helper()
 	if res.StatusCode != want {

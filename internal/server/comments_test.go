@@ -199,6 +199,99 @@ func TestRepliesAndDelete(t *testing.T) {
 	}
 }
 
+func TestReanchorDropsCommentsThatNoLongerAnchor(t *testing.T) {
+	h := newHarness(t, seedRepo(t), nil)
+	gone := createComment(t, h, `{"anchor":{"path":"src/app.go","side":"additions","startLine":6,"endLine":6},"body":"from an older diff"}`)
+	kept := createComment(t, h, `{"anchor":{"path":"docs/guide.md","side":"additions","startLine":3,"endLine":3},"body":"still here"}`)
+
+	doc := h.readDoc(t)
+	for i := range doc.Comments {
+		if doc.Comments[i].ID != gone.ID {
+			continue
+		}
+		doc.Comments[i].Anchor.BlobSha = "0000000000000000000000000000000000000000"
+		doc.Comments[i].Anchor.Quote = "a line this diff never had"
+	}
+	h.writeDoc(t, doc)
+
+	dropped, changed, err := Reanchor(h.store, NewContentResolver(h.server.opts.Repo, h.server.opts.Spec), h.manifest(t), h.server.log)
+	if err != nil {
+		t.Fatalf("Reanchor: %v", err)
+	}
+	if !changed {
+		t.Fatal("Reanchor reported no change, want the stale comment removed from disk")
+	}
+	if len(dropped) != 1 || dropped[0].ID != gone.ID {
+		t.Fatalf("dropped = %+v, want just %s", dropped, gone.ID)
+	}
+
+	persisted := h.readDoc(t)
+	if len(persisted.Comments) != 1 || persisted.Comments[0].ID != kept.ID {
+		t.Fatalf("comments on disk = %+v, want just %s", persisted.Comments, kept.ID)
+	}
+}
+
+// A comment left over from an earlier revspec resolves perfectly well — its
+// blob is still in the tree — but this diff has no row to hang it on.
+func TestReanchorDropsCommentsOnFilesOutsideTheDiff(t *testing.T) {
+	h := newHarness(t, seedRepo(t), nil)
+	outside := createComment(t, h, `{"anchor":{"path":"README.md","side":"additions","startLine":1,"endLine":1},"body":"from an older revspec"}`)
+	inside := createComment(t, h, `{"anchor":{"path":"src/app.go","side":"additions","startLine":6,"endLine":6},"body":"about this diff"}`)
+
+	before := h.readDoc(t)
+	if len(before.Comments) != 2 {
+		t.Fatalf("setup wrote %d comments, want 2", len(before.Comments))
+	}
+
+	dropped, changed, err := Reanchor(h.store, NewContentResolver(h.server.opts.Repo, h.server.opts.Spec), h.manifest(t), h.server.log)
+	if err != nil {
+		t.Fatalf("Reanchor: %v", err)
+	}
+	if !changed {
+		t.Fatal("Reanchor reported no change, want the out-of-diff comment removed")
+	}
+	if len(dropped) != 1 || dropped[0].ID != outside.ID {
+		t.Fatalf("dropped = %+v, want just %s", dropped, outside.ID)
+	}
+
+	persisted := h.readDoc(t)
+	if len(persisted.Comments) != 1 || persisted.Comments[0].ID != inside.ID {
+		t.Fatalf("comments on disk = %+v, want just %s", persisted.Comments, inside.ID)
+	}
+}
+
+func TestReanchorWithoutAManifestKeepsEveryPath(t *testing.T) {
+	h := newHarness(t, seedRepo(t), nil)
+	createComment(t, h, `{"anchor":{"path":"README.md","side":"additions","startLine":1,"endLine":1},"body":"outside the diff"}`)
+
+	dropped, _, err := Reanchor(h.store, NewContentResolver(h.server.opts.Repo, h.server.opts.Spec), nil, h.server.log)
+	if err != nil {
+		t.Fatalf("Reanchor: %v", err)
+	}
+	if len(dropped) != 0 {
+		t.Fatalf("dropped %+v, want nothing dropped when there is no manifest to judge by", dropped)
+	}
+}
+
+func TestSnapshotKeepsCommentsThatGoStaleWhileRunning(t *testing.T) {
+	h := newHarness(t, seedRepo(t), nil)
+	comment := createComment(t, h, `{"anchor":{"path":"src/app.go","side":"additions","startLine":6,"endLine":6},"body":"watch this"}`)
+
+	doc := h.readDoc(t)
+	doc.Comments[0].Anchor.BlobSha = "0000000000000000000000000000000000000000"
+	doc.Comments[0].Anchor.Quote = "a line this diff never had"
+	h.writeDoc(t, doc)
+
+	var res commentsResponse
+	h.decode(h.get("/api/comments"), &res)
+	if len(res.Doc.Comments) != 1 || res.Doc.Comments[0].ID != comment.ID {
+		t.Fatalf("comments = %+v, want %s kept and flagged", res.Doc.Comments, comment.ID)
+	}
+	if resolved := res.Doc.Comments[0].ResolvedAnchor; resolved == nil || !resolved.Stale {
+		t.Errorf("resolvedAnchor = %+v, want stale", resolved)
+	}
+}
+
 func TestReanchorPersistsToDisk(t *testing.T) {
 	f := seedRepo(t)
 	h := newHarness(t, f, nil)
@@ -223,12 +316,15 @@ func TestReanchorPersistsToDisk(t *testing.T) {
 		t.Fatalf("write comments file: %v", err)
 	}
 
-	changed, err := Reanchor(h.store, NewContentResolver(h.server.opts.Repo, h.server.opts.Spec), h.server.log)
+	dropped, changed, err := Reanchor(h.store, NewContentResolver(h.server.opts.Repo, h.server.opts.Spec), h.manifest(t), h.server.log)
 	if err != nil {
 		t.Fatalf("Reanchor: %v", err)
 	}
 	if !changed {
 		t.Fatal("Reanchor reported no change, want the moved anchor written back")
+	}
+	if len(dropped) != 0 {
+		t.Fatalf("dropped %d comments, want the re-anchorable one kept", len(dropped))
 	}
 
 	saved, err := os.ReadFile(h.commentsPath())
@@ -248,10 +344,10 @@ func TestReanchorPersistsToDisk(t *testing.T) {
 		t.Errorf("resolvedAnchor.movedFrom was not recorded on disk: %+v", resolved)
 	}
 
-	if _, err := Reanchor(h.store, NewContentResolver(h.server.opts.Repo, h.server.opts.Spec), h.server.log); err != nil {
+	if _, _, err := Reanchor(h.store, NewContentResolver(h.server.opts.Repo, h.server.opts.Spec), h.manifest(t), h.server.log); err != nil {
 		t.Fatalf("second Reanchor: %v", err)
 	}
-	again, err := Reanchor(h.store, NewContentResolver(h.server.opts.Repo, h.server.opts.Spec), h.server.log)
+	_, again, err := Reanchor(h.store, NewContentResolver(h.server.opts.Repo, h.server.opts.Spec), h.manifest(t), h.server.log)
 	if err != nil {
 		t.Fatalf("third Reanchor: %v", err)
 	}
