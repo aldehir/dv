@@ -15,6 +15,7 @@ import type { DiffItem } from './items';
 import { itemFor, withAnnotations } from './items';
 import { measureMetrics, measuredMetrics } from './metrics';
 import { buildOptions } from './options';
+import { forwardWheel } from './wheel';
 
 const WORKER_POOL_SIZE = 4;
 
@@ -237,6 +238,7 @@ export const createViewer = ({
     revealRange(thread.fileId, rangeFor(thread));
   };
 
+  disposer.add(forwardWheel(root));
   disposer.add(view.subscribeToScroll((top) => store.set({ scrollTop: top })));
   disposer.add(bus.on('file:payload', add));
   disposer.add(
