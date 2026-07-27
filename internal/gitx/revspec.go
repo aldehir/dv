@@ -298,7 +298,7 @@ func pathExists(r *Repo, arg string) bool {
 	if arg == "" {
 		return false
 	}
-	_, err := os.Lstat(r.worktreePath(arg))
+	_, err := os.Lstat(r.cwdPath(arg))
 	return err == nil
 }
 

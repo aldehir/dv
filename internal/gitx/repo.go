@@ -22,6 +22,7 @@ var ErrNotFound = errors.New("path not present on that side")
 type Repo struct {
 	Root   string
 	GitDir string
+	Cwd    string
 }
 
 type Options struct {
@@ -95,15 +96,26 @@ func Open(cwd string) (*Repo, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Repo{Root: root, GitDir: strings.TrimRight(string(gitDir), "\n")}, nil
+	return &Repo{Root: root, GitDir: strings.TrimRight(string(gitDir), "\n"), Cwd: cwd}, nil
+}
+
+func (r *Repo) workDir() string {
+	if r.Cwd != "" {
+		return r.Cwd
+	}
+	return r.Root
 }
 
 func (r *Repo) run(args ...string) ([]byte, error) {
-	return execGit(r.Root, nil, args...)
+	return execGit(r.workDir(), nil, args...)
 }
 
 func (r *Repo) runOK(okCodes []int, args ...string) ([]byte, error) {
-	return execGit(r.Root, okCodes, args...)
+	return execGit(r.workDir(), okCodes, args...)
+}
+
+func (r *Repo) cwdPath(path string) string {
+	return filepath.Join(r.workDir(), filepath.FromSlash(path))
 }
 
 func (r *Repo) Head() (string, error) {

@@ -226,7 +226,7 @@ func (r *Repo) Manifest(s *RevSpec, o Options) (*model.Manifest, error) {
 }
 
 func (r *Repo) untrackedEntries(s *RevSpec, o Options) ([]model.FileEntry, error) {
-	args := []string{"ls-files", "--others", "--exclude-standard", "-z", "--"}
+	args := []string{"ls-files", "--others", "--exclude-standard", "--full-name", "-z", "--"}
 	args = append(args, s.Paths...)
 	out, err := r.run(args...)
 	if err != nil {
