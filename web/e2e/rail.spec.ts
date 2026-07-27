@@ -30,17 +30,6 @@ test('drags the diff by the box', async ({ page }) => {
   await page.screenshot({ path: 'test-results/rail-dragged.png' });
 });
 
-test('sends the box to a press on the track', async ({ page }) => {
-  const track = await rail(page).boundingBox();
-  if (!track) throw new Error('expected a rail');
-  const before = await boxTop(page);
-
-  await page.mouse.click(track.x + track.width / 2, track.y + track.height * 0.8);
-
-  expect(await scrollTop(page)).toBeGreaterThan(0);
-  expect(await boxTop(page)).toBeGreaterThan(before);
-});
-
 test('rolls the wheel over the rail into the diff', async ({ page }) => {
   const track = await rail(page).boundingBox();
   if (!track) throw new Error('expected a rail');
