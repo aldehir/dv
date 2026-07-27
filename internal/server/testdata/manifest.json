@@ -1,0 +1,60 @@
+{
+  "files": [
+    {
+      "id": "ZG9jcy9ndWlkZS5tZA",
+      "path": "docs/guide.md",
+      "status": "added",
+      "additions": 3,
+      "deletions": 0,
+      "binary": false,
+      "tooLarge": false,
+      "submodule": false,
+      "symlink": false,
+      "mode": {
+        "old": "000000",
+        "new": "100644"
+      },
+      "oldSha": "0000000000000000000000000000000000000000",
+      "newSha": "46d23920c000b3e55b5288b8cf6ae6c49ecad1a2"
+    },
+    {
+      "id": "c3JjL2FwcC5nbw",
+      "path": "src/app.go",
+      "status": "modified",
+      "additions": 3,
+      "deletions": 1,
+      "binary": false,
+      "tooLarge": false,
+      "submodule": false,
+      "symlink": false,
+      "mode": {
+        "old": "100644",
+        "new": "100644"
+      },
+      "oldSha": "c3dd715d8297fa52d077584e74d0cfc3a7870b49",
+      "newSha": "905ca32e3619e455737376c56aafbc832e7f6170"
+    },
+    {
+      "id": "c3JjL2xlZ2FjeS5nbw",
+      "path": "src/legacy.go",
+      "status": "deleted",
+      "additions": 0,
+      "deletions": 3,
+      "binary": false,
+      "tooLarge": false,
+      "submodule": false,
+      "symlink": false,
+      "mode": {
+        "old": "100644",
+        "new": "000000"
+      },
+      "oldSha": "48f13d275485793e35cd87af88366f6fc5f61ff0",
+      "newSha": "0000000000000000000000000000000000000000"
+    }
+  ],
+  "totals": {
+    "files": 3,
+    "additions": 6,
+    "deletions": 4
+  }
+}

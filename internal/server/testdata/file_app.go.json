@@ -1,0 +1,34 @@
+{
+  "id": "c3JjL2FwcC5nbw",
+  "path": "src/app.go",
+  "status": "modified",
+  "patch": "diff --git a/src/app.go b/src/app.go\nindex c3dd715..905ca32 100644\n--- a/src/app.go\n+++ b/src/app.go\n@@ -1,5 +1,7 @@\n package app\n \n+import \"errors\"\n+\n func Run() error {\n-\treturn nil\n+\treturn errors.New(\"boom\")\n }\n",
+  "oldLines": [
+    "package app",
+    "",
+    "func Run() error {",
+    "\treturn nil",
+    "}"
+  ],
+  "newLines": [
+    "package app",
+    "",
+    "import \"errors\"",
+    "",
+    "func Run() error {",
+    "\treturn errors.New(\"boom\")",
+    "}"
+  ],
+  "binary": false,
+  "tooLarge": false,
+  "oldSha": "c3dd715d8297fa52d077584e74d0cfc3a7870b49",
+  "newSha": "905ca32e3619e455737376c56aafbc832e7f6170",
+  "oldSize": 46,
+  "newSize": 78,
+  "mode": {
+    "old": "100644",
+    "new": "100644"
+  },
+  "submodule": false,
+  "symlink": false
+}

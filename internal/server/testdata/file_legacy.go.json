@@ -1,0 +1,24 @@
+{
+  "id": "c3JjL2xlZ2FjeS5nbw",
+  "path": "src/legacy.go",
+  "status": "deleted",
+  "patch": "diff --git a/src/legacy.go b/src/legacy.go\ndeleted file mode 100644\nindex 48f13d2..0000000\n--- a/src/legacy.go\n+++ /dev/null\n@@ -1,3 +0,0 @@\n-package app\n-\n-const Legacy = 1\n",
+  "oldLines": [
+    "package app",
+    "",
+    "const Legacy = 1"
+  ],
+  "newLines": [],
+  "binary": false,
+  "tooLarge": false,
+  "oldSha": "48f13d275485793e35cd87af88366f6fc5f61ff0",
+  "newSha": "0000000000000000000000000000000000000000",
+  "oldSize": 30,
+  "newSize": 0,
+  "mode": {
+    "old": "100644",
+    "new": "000000"
+  },
+  "submodule": false,
+  "symlink": false
+}

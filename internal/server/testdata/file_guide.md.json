@@ -1,0 +1,24 @@
+{
+  "id": "ZG9jcy9ndWlkZS5tZA",
+  "path": "docs/guide.md",
+  "status": "added",
+  "patch": "diff --git a/docs/guide.md b/docs/guide.md\nnew file mode 100644\nindex 0000000..46d2392\n--- /dev/null\n+++ b/docs/guide.md\n@@ -0,0 +1,3 @@\n+# guide\n+\n+Read this first.\n",
+  "oldLines": [],
+  "newLines": [
+    "# guide",
+    "",
+    "Read this first."
+  ],
+  "binary": false,
+  "tooLarge": false,
+  "oldSha": "0000000000000000000000000000000000000000",
+  "newSha": "46d23920c000b3e55b5288b8cf6ae6c49ecad1a2",
+  "oldSize": 0,
+  "newSize": 26,
+  "mode": {
+    "old": "000000",
+    "new": "100644"
+  },
+  "submodule": false,
+  "symlink": false
+}
