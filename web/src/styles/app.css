@@ -652,19 +652,21 @@ samp,
 
 .dv-thread {
   display: grid;
-  gap: 0.4rem;
-  padding: 0.35rem 0 0.5rem;
+  gap: 0.6rem;
+  padding: 0.75rem 1rem 0.9rem;
 }
 
+/* The card is the comment box; the actions float over its bottom-right corner. */
 .dv-thread__card {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  gap: 0.4rem;
-  padding: 0.5rem 0.6rem;
+  position: relative;
   color: var(--dv-fg);
   background: var(--dv-bg-raised);
   border: 1px solid var(--dv-border-strong);
-  border-radius: var(--dv-radius);
+  border-radius: calc(var(--dv-radius) * 2);
+}
+
+.dv-thread__card:focus-within {
+  border-color: var(--dv-accent);
 }
 
 /* Still worn by the inbox rows. */
@@ -677,21 +679,39 @@ samp,
 }
 
 .dv-thread__actions {
-  display: grid;
-  gap: 0.3rem;
-  align-content: start;
+  position: absolute;
+  right: 0.4rem;
+  bottom: 0.35rem;
+  display: flex;
+  gap: 0.2rem;
 }
 
+.dv-thread__action {
+  width: 1.5rem;
+  height: 1.5rem;
+  color: var(--dv-fg-muted);
+}
+
+.dv-thread__action--danger:hover {
+  color: var(--dv-removed);
+}
+
+/* Bottom padding keeps the last line clear of the floating actions. */
 .dv-thread__input {
+  display: block;
   width: 100%;
-  padding: 0.3rem 0.4rem;
+  padding: 0.55rem 0.7rem 2.1rem;
   color: var(--dv-fg);
   font-family: inherit;
   font-size: inherit;
-  background: var(--dv-bg);
-  border: 1px solid var(--dv-border-strong);
-  border-radius: var(--dv-radius);
-  resize: vertical;
+  background: transparent;
+  border: 0;
+  border-radius: inherit;
+  resize: none;
+}
+
+.dv-thread__input:focus-visible {
+  outline: none;
 }
 
 .dv-composer {
@@ -712,7 +732,7 @@ samp,
   display: block;
   width: 100%;
   min-height: 9rem;
-  padding: 0.6rem 0.75rem 2.5rem;
+  padding: 0.8rem 0.95rem 2.7rem;
   color: var(--dv-fg);
   font-family: inherit;
   font-size: inherit;
@@ -729,11 +749,11 @@ samp,
 
 .dv-composer__bar {
   position: absolute;
-  right: 0.6rem;
+  right: 0.55rem;
   bottom: 0.5rem;
-  left: 0.6rem;
+  left: 0.95rem;
   display: flex;
-  gap: 0.5rem;
+  gap: 0.2rem;
   align-items: center;
   justify-content: flex-end;
   pointer-events: none;
@@ -741,6 +761,15 @@ samp,
 
 .dv-composer__bar > * {
   pointer-events: auto;
+}
+
+/* Saving is the primary action here, so it carries the accent. */
+.dv-composer__save {
+  color: var(--dv-accent);
+}
+
+.dv-composer__cancel {
+  color: var(--dv-fg-muted);
 }
 
 .dv-composer__notice {

@@ -1,4 +1,5 @@
 import {
+  Check,
   ChevronRight,
   Columns2,
   createElement,
@@ -17,6 +18,8 @@ import {
   Rows3,
   Search,
   TextWrap,
+  Trash2,
+  X,
 } from 'lucide';
 
 export type { IconNode };
@@ -38,6 +41,9 @@ export const ICONS = {
   search: Search,
   sidebar: PanelLeft,
   compare: GitCompare,
+  check: Check,
+  trash: Trash2,
+  close: X,
 } as const;
 
 export type IconName = keyof typeof ICONS;

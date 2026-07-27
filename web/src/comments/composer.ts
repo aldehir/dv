@@ -4,6 +4,7 @@ import { createDisposer } from '../core/component';
 import { el, on } from '../core/dom';
 import type { AppStore, LineSelection } from '../core/store';
 import type { Viewer } from '../diff/viewer';
+import { icon } from '../ui/icons';
 import { draftKeyFor } from './anchors';
 import type { ComposeTarget, CommentsStore } from './store';
 
@@ -33,16 +34,26 @@ export const createComposer = ({
     spellcheck: false,
   });
   const notice = el('span', { class: 'dv-composer__notice', hidden: true });
-  const save = el('button', {
-    class: 'dv-btn dv-composer__save',
-    type: 'button',
-    textContent: 'save',
-  });
-  const cancel = el('button', {
-    class: 'dv-btn dv-composer__cancel',
-    type: 'button',
-    textContent: 'cancel',
-  });
+  const save = el(
+    'button',
+    {
+      class: 'dv-icon-btn dv-composer__save',
+      type: 'button',
+      ariaLabel: 'Save this comment',
+      title: 'Save this comment',
+    },
+    icon('check'),
+  );
+  const cancel = el(
+    'button',
+    {
+      class: 'dv-icon-btn dv-composer__cancel',
+      type: 'button',
+      ariaLabel: 'Discard this comment',
+      title: 'Discard this comment',
+    },
+    icon('close'),
+  );
 
   const root = el(
     'div',

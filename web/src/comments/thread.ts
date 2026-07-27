@@ -2,6 +2,7 @@ import type { Bus } from '../core/bus';
 import type { Component, Disposer } from '../core/component';
 import { createDisposer } from '../core/component';
 import { el, on, replaceChildren } from '../core/dom';
+import { type IconName, icon } from '../ui/icons';
 import type { Thread } from './anchors';
 import type { CommentsStore } from './store';
 
@@ -27,8 +28,21 @@ export const locationLabel = (thread: Thread): string => {
 const rowsFor = (body: string): number =>
   Math.min(Math.max(body.split('\n').length, MIN_ROWS), MAX_ROWS);
 
-const actionButton = (label: string, title: string): HTMLButtonElement =>
-  el('button', { class: 'dv-btn dv-thread__action', type: 'button', textContent: label, title });
+const actionButton = (
+  name: IconName,
+  title: string,
+  modifier = '',
+): HTMLButtonElement =>
+  el(
+    'button',
+    {
+      class: `dv-icon-btn dv-thread__action${modifier}`,
+      type: 'button',
+      ariaLabel: title,
+      title,
+    },
+    icon(name),
+  );
 
 const buildCard = (thread: Thread, deps: ThreadDeps, disposer: Disposer): HTMLElement => {
   const input = el('textarea', {
@@ -37,8 +51,8 @@ const buildCard = (thread: Thread, deps: ThreadDeps, disposer: Disposer): HTMLEl
     value: thread.comment.body,
     spellcheck: false,
   });
-  const save = actionButton('save', 'Save this comment');
-  const remove = actionButton('delete', 'Delete this comment');
+  const save = actionButton('check', 'Save this comment');
+  const remove = actionButton('trash', 'Delete this comment', ' dv-thread__action--danger');
 
   const actions = el('div', { class: 'dv-thread__actions' }, save, remove);
   // A pending comment has no server id yet, so it cannot be patched or deleted.
@@ -67,8 +81,8 @@ const buildCard = (thread: Thread, deps: ThreadDeps, disposer: Disposer): HTMLEl
   const card = el(
     'article',
     { class: 'dv-thread__card', id: `dv-comment-${thread.id}` },
-    actions,
     input,
+    actions,
   );
 
   disposer.add(

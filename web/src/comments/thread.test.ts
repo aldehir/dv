@@ -64,7 +64,7 @@ const inputOf = (list: { el: HTMLElement }): HTMLTextAreaElement => {
 
 const buttonFor = (list: { el: HTMLElement }, label: string): HTMLButtonElement | undefined =>
   [...list.el.querySelectorAll<HTMLButtonElement>('.dv-thread__action')].find(
-    (button) => button.textContent === label,
+    (button) => button.getAttribute('aria-label') === label,
   );
 
 describe('createThreadList', () => {
@@ -79,11 +79,11 @@ describe('createThreadList', () => {
 
   it('offers only save and delete', () => {
     const { list } = setup([threadFor('f1', comment())]);
-    const labels = [...list.el.querySelectorAll('.dv-thread__action')].map(
-      (button) => button.textContent,
+    const labels = [...list.el.querySelectorAll('.dv-thread__action')].map((button) =>
+      button.getAttribute('aria-label'),
     );
 
-    expect(labels).toEqual(['save', 'delete']);
+    expect(labels).toEqual(['Save this comment', 'Delete this comment']);
     expect(list.el.querySelector('.dv-thread__author')).toBeNull();
     expect(list.el.querySelector('.dv-thread__time')).toBeNull();
     expect(list.el.querySelector('.dv-thread__status')).toBeNull();
@@ -103,7 +103,7 @@ describe('createThreadList', () => {
   it('saves an edited body through the store', () => {
     const { comments, list } = setup([threadFor('f1', comment())]);
     inputOf(list).value = '  now correct  ';
-    buttonFor(list, 'save')?.click();
+    buttonFor(list, 'Save this comment')?.click();
 
     expect(comments.update).toHaveBeenCalledWith('c1', { body: 'now correct' });
     list.destroy();
@@ -121,9 +121,9 @@ describe('createThreadList', () => {
 
   it('skips a save that changes nothing', () => {
     const { comments, list } = setup([threadFor('f1', comment())]);
-    buttonFor(list, 'save')?.click();
+    buttonFor(list, 'Save this comment')?.click();
     inputOf(list).value = '';
-    buttonFor(list, 'save')?.click();
+    buttonFor(list, 'Save this comment')?.click();
 
     expect(comments.update).not.toHaveBeenCalled();
     list.destroy();
@@ -131,7 +131,7 @@ describe('createThreadList', () => {
 
   it('deletes through the store', () => {
     const { comments, list } = setup([threadFor('f1', comment())]);
-    buttonFor(list, 'delete')?.click();
+    buttonFor(list, 'Delete this comment')?.click();
 
     expect(comments.remove).toHaveBeenCalledWith('c1');
     list.destroy();
@@ -171,7 +171,7 @@ describe('createThreadList', () => {
     for (const button of stale) button.click();
     expect(comments.remove).not.toHaveBeenCalled();
 
-    buttonFor(list, 'delete')?.click();
+    buttonFor(list, 'Delete this comment')?.click();
     expect(comments.remove).toHaveBeenCalledWith('c2');
     list.destroy();
   });
