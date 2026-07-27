@@ -11,6 +11,7 @@ import { createBus } from './core/bus';
 import { createLazyOverlay } from './core/component';
 import { createRouter } from './core/router';
 import { createInitialState, createStore } from './core/store';
+import { createRail } from './diff/rail';
 import { createViewer } from './diff/viewer';
 import { createThemeController } from './theme/controller';
 import { createControls } from './ui/controls';
@@ -45,6 +46,7 @@ const help = createLazyOverlay(shell.overlays, () =>
 createThemeController(deps).start();
 createKeybinds(deps);
 createRouter(deps);
+shell.main.appendChild(createRail({ ...deps, comments, viewer }).el);
 shell.panel.replaceChildren(createInbox({ ...deps, comments, viewer }).el);
 
 bus.on('help:toggle', help.toggle);

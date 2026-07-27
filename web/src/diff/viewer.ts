@@ -1,4 +1,4 @@
-import type { CodeViewLineSelection, VirtualFileMetrics } from '@pierre/diffs';
+import type { CodeViewLineSelection, Hunk, VirtualFileMetrics } from '@pierre/diffs';
 import { CodeView } from '@pierre/diffs';
 import { getOrCreateWorkerPoolSingleton } from '@pierre/diffs/worker';
 import type { FilePayload } from '../api/types';
@@ -37,6 +37,27 @@ export interface ItemChange {
  */
 export type RevealAlign = 'center' | 'nearest';
 
+/** One hunk placed in the whole scroll, for the rail to draw. */
+export interface HunkMark {
+  fileId: string;
+  path: string;
+  index: number;
+  /** Where the hunk sits in the total scroll height, 0 to 1. */
+  offset: number;
+  /** Where the hunk's file starts, so the rail can seam the boundary. */
+  fileOffset: number;
+  additions: number;
+  deletions: number;
+  /** The name after `@@`, when git found one. */
+  context: string;
+}
+
+/** The visible slice of the scroll, both as fractions of its total height. */
+export interface Viewport {
+  offset: number;
+  extent: number;
+}
+
 export interface ViewerDeps {
   store: AppStore;
   bus: Bus;
@@ -53,6 +74,9 @@ export interface Viewer extends Disposable {
   revealRange(id: string, range: LineRange, align?: RevealAlign): void;
   revealThread(thread: Thread): void;
   stepHunk(delta: number): void;
+  hunks(): HunkMark[];
+  jumpToHunk(mark: HunkMark): void;
+  viewport(): Viewport;
 }
 
 const workerManager = (
@@ -266,6 +290,17 @@ export const createViewer = ({
     }
   };
 
+  const scrollToHunk = (id: string, hunk: Hunk): void => {
+    const additions = hunk.additionCount > 0;
+    view.scrollTo({
+      type: 'line',
+      id,
+      lineNumber: additions ? hunk.additionStart : hunk.deletionStart,
+      side: additions ? 'additions' : 'deletions',
+      align: 'start',
+    });
+  };
+
   const stepHunk = (delta: number): void => {
     const id = store.get().selectedFile;
     if (id === null) return;
@@ -278,14 +313,67 @@ export const createViewer = ({
     hunkCursor.set(id, index);
     const hunk = hunks[index];
     if (!hunk) return;
-    const additions = hunk.additionCount > 0;
-    view.scrollTo({
-      type: 'line',
-      id,
-      lineNumber: additions ? hunk.additionStart : hunk.deletionStart,
-      side: additions ? 'additions' : 'deletions',
-      align: 'start',
+    scrollToHunk(id, hunk);
+  };
+
+  const jumpToHunk = (mark: HunkMark): void => {
+    const item = view.getItem(mark.fileId);
+    if (!item || item.type !== 'diff') return;
+    const hunk = item.fileDiff.hunks[mark.index];
+    if (!hunk) return;
+    hunkCursor.set(mark.fileId, mark.index);
+    scrollToHunk(mark.fileId, hunk);
+  };
+
+  /**
+   * Every tick is placed inside its own file's measured band, so a band whose
+   * height drifts from its line count cannot push the files below it off.
+   */
+  const hunks = (): HunkMark[] => {
+    const total = view.getScrollHeight();
+    if (total <= 0) return [];
+    const split = store.get().view === 'split';
+    const tops = items.map((item) => view.getTopForItem(item.id));
+
+    // Where each file's band ends: the next file that has been measured.
+    const ends: number[] = new Array(items.length);
+    let below = total;
+    for (let index = items.length - 1; index >= 0; index -= 1) {
+      ends[index] = below;
+      const top = tops[index];
+      if (top !== undefined) below = top;
+    }
+
+    const marks: HunkMark[] = [];
+    items.forEach((item, index) => {
+      const top = tops[index];
+      if (item.type !== 'diff' || top === undefined) return;
+      const band = Math.max((ends[index] ?? total) - top, 0);
+      const lines = split ? item.fileDiff.splitLineCount : item.fileDiff.unifiedLineCount;
+      if (lines <= 0) return;
+      item.fileDiff.hunks.forEach((hunk, position) => {
+        const start = split ? hunk.splitLineStart : hunk.unifiedLineStart;
+        marks.push({
+          fileId: item.id,
+          path: item.fileDiff.name,
+          index: position,
+          offset: (top + (band * start) / lines) / total,
+          fileOffset: top / total,
+          additions: hunk.additionLines,
+          deletions: hunk.deletionLines,
+          context: hunk.hunkContext ?? '',
+        });
+      });
     });
+
+    return marks;
+  };
+
+  const viewport = (): Viewport => {
+    const total = view.getScrollHeight();
+    const height = view.getHeight();
+    if (total <= 0 || height <= 0) return { offset: 0, extent: 1 };
+    return { offset: view.getScrollTop() / total, extent: Math.min(height / total, 1) };
   };
 
   const revealThread = (thread: Thread): void => {
@@ -365,6 +453,9 @@ export const createViewer = ({
     revealRange,
     revealThread,
     stepHunk,
+    hunks,
+    jumpToHunk,
+    viewport,
     destroy() {
       disposer.dispose();
       view.cleanUp();

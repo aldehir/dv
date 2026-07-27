@@ -415,6 +415,87 @@ describe('createViewer', () => {
     harness.viewer.destroy();
   });
 
+  /** jsdom lays nothing out, so the measurements the rail reads are staged. */
+  const measured = (harness: Bench, tops: Record<string, number>, total = 1000): void => {
+    vi.spyOn(harness.view(), 'getScrollHeight').mockReturnValue(total);
+    vi.spyOn(harness.view(), 'getTopForItem').mockImplementation((id: string) => tops[id]);
+  };
+
+  it('places a hunk tick inside the band of its own file', () => {
+    const harness = bench();
+    harness.bus.emit('manifest:ready', manifest());
+    harness.bus.emit('file:payload', payload('f1', 'src/f1.ts'));
+    harness.bus.emit('file:payload', payload('f2', 'src/f2.ts'));
+    measured(harness, { f1: 0, f2: 400 });
+
+    expect(harness.viewer.hunks()).toEqual([
+      {
+        fileId: 'f1',
+        path: 'src/f1.ts',
+        index: 0,
+        offset: 0,
+        fileOffset: 0,
+        additions: 1,
+        deletions: 1,
+        context: '',
+      },
+      {
+        fileId: 'f2',
+        path: 'src/f2.ts',
+        index: 0,
+        offset: 0.4,
+        fileOffset: 0.4,
+        additions: 1,
+        deletions: 1,
+        context: '',
+      },
+    ]);
+    harness.viewer.destroy();
+  });
+
+  it('has no ticks until the scroll has a height', () => {
+    const harness = bench();
+    harness.bus.emit('file:payload', payload('f1', 'src/f1.ts'));
+    measured(harness, { f1: 0 }, 0);
+
+    expect(harness.viewer.hunks()).toEqual([]);
+    harness.viewer.destroy();
+  });
+
+  it('jumps to the hunk a tick stands for', () => {
+    const harness = bench();
+    harness.bus.emit('manifest:ready', manifest());
+    harness.bus.emit('file:payload', payload('f1', 'src/f1.ts'));
+    harness.bus.emit('file:payload', payload('f2', 'src/f2.ts'));
+    measured(harness, { f1: 0, f2: 400 });
+    const mark = harness.viewer.hunks()[1];
+    if (!mark) throw new Error('expected a tick for f2');
+    const scrollTo = vi.spyOn(harness.view(), 'scrollTo');
+
+    harness.viewer.jumpToHunk(mark);
+
+    expect(scrollTo).toHaveBeenLastCalledWith({
+      type: 'line',
+      id: 'f2',
+      lineNumber: 1,
+      side: 'additions',
+      align: 'start',
+    });
+    harness.viewer.destroy();
+  });
+
+  it('reports the viewport as fractions of the scroll height', () => {
+    const harness = bench();
+    expect(harness.viewer.viewport()).toEqual({ offset: 0, extent: 1 });
+
+    vi.spyOn(harness.view(), 'getScrollHeight').mockReturnValue(1000);
+    vi.spyOn(harness.view(), 'getHeight').mockReturnValue(250);
+    vi.spyOn(harness.view(), 'getScrollTop').mockReturnValue(500);
+
+    expect(harness.viewer.viewport()).toEqual({ offset: 0.5, extent: 0.25 });
+    harness.viewer.destroy();
+  });
+
   it('reports which items it holds', () => {
     const harness = bench();
     expect(harness.viewer.has('f1')).toBe(false);

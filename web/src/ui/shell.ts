@@ -26,6 +26,7 @@ export interface ShellDeps extends ShellSlots {
 
 export interface Shell extends Component<ShellProps> {
   mount: HTMLElement;
+  main: HTMLElement;
   panel: HTMLElement;
   overlays: HTMLElement;
 }
@@ -55,6 +56,7 @@ export const createShell = ({
 
   const mount = el('div', { class: 'dv-shell__mount', id: DIFF_MOUNT_ID });
   const placeholder = el('div', { class: 'dv-shell__placeholder', hidden: true });
+  const main = el('div', { class: 'dv-shell__main' }, mount, placeholder);
   const panel = el('aside', { class: 'dv-shell__panel' });
   const overlays = el('div', { class: 'dv-shell__overlays' });
 
@@ -68,7 +70,7 @@ export const createShell = ({
       el('div', { class: 'dv-shell__tree' }, sidebar),
       el('div', { class: 'dv-shell__controls' }, controls),
     ),
-    el('div', { class: 'dv-shell__main' }, mount, placeholder),
+    main,
     panel,
     el('footer', { class: 'dv-shell__status' }, status),
     overlays,
@@ -98,6 +100,7 @@ export const createShell = ({
   return {
     el: root,
     mount,
+    main,
     panel,
     overlays,
     update,
