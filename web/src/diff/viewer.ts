@@ -10,6 +10,7 @@ import type { Bus } from '../core/bus';
 import type { Disposable } from '../core/component';
 import { createDisposer } from '../core/component';
 import type { AppStore, LineRange, LineSelection } from '../core/store';
+import { themeOptionFor } from '../theme/catppuccin';
 import type { DiffItem } from './items';
 import { itemFor, withAnnotations } from './items';
 import { measureMetrics, measuredMetrics } from './metrics';
@@ -40,7 +41,9 @@ export interface Viewer extends Disposable {
   stepHunk(delta: number): void;
 }
 
-const workerManager = (): ReturnType<typeof getOrCreateWorkerPoolSingleton> | undefined => {
+const workerManager = (
+  theme: ReturnType<typeof themeOptionFor>,
+): ReturnType<typeof getOrCreateWorkerPoolSingleton> | undefined => {
   if (typeof Worker === 'undefined') return undefined;
   try {
     return getOrCreateWorkerPoolSingleton({
@@ -51,7 +54,7 @@ const workerManager = (): ReturnType<typeof getOrCreateWorkerPoolSingleton> | un
             type: 'module',
           }),
       },
-      highlighterOptions: {},
+      highlighterOptions: { theme },
     });
   } catch {
     return undefined;
@@ -97,11 +100,13 @@ export const createViewer = ({
 
   const options = () => buildOptions(store.get(), { store, bus, metrics, renderAnnotation });
 
-  const view = new CodeView<Thread[]>(options(), workerManager());
+  const workers = workerManager(themeOptionFor(store.get().themePref));
+  const view = new CodeView<Thread[]>(options(), workers);
   view.setup(root);
 
   const applyOptions = (): void => {
     view.setOptions(options());
+    void workers?.setRenderOptions({ theme: themeOptionFor(store.get().themePref) });
   };
 
   const rankOf = (id: string): number => rank.get(id) ?? Number.MAX_SAFE_INTEGER;

@@ -6,7 +6,8 @@
     "dev": "vite",
     "build": "vite build",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@catppuccin/palette": "1.7.1",
@@ -14,6 +15,7 @@
     "@pierre/diffs": "1.2.12"
   },
   "devDependencies": {
+    "@playwright/test": "^1.62.0",
     "jsdom": "^26.1.0",
     "typescript": "^5.9.2",
     "vite": "^7.3.6",

@@ -47,6 +47,39 @@ jobs:
           path: web/dist
           retention-days: 1
 
+  e2e:
+    needs: web
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+          cache: true
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.3.14'
+      - uses: actions/download-artifact@v4
+        with:
+          name: web-dist
+          path: web/dist
+      - name: build binary
+        run: CGO_ENABLED=0 go build -o bin/dv .
+      - name: install browsers
+        working-directory: web
+        run: bun install --frozen-lockfile && bunx playwright install --with-deps chromium
+      - name: smoke test
+        working-directory: web
+        run: bun run test:e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: web/playwright-report
+          retention-days: 7
+
   build:
     needs: [go, web]
     runs-on: ubuntu-latest

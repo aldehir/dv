@@ -21,9 +21,10 @@ import (
 )
 
 const (
-	TokenHeader      = "Sec-Dv-Token"
-	TokenQueryParam  = "token"
-	TokenPlaceholder = "__DV_TOKEN__"
+	TokenHeader       = "X-Dv-Token"
+	LegacyTokenHeader = "Sec-Dv-Token"
+	TokenQueryParam   = "token"
+	TokenPlaceholder  = "__DV_TOKEN__"
 
 	tokenBytes        = 32
 	shutdownGrace     = 5 * time.Second

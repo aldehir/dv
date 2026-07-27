@@ -47,8 +47,9 @@ const distAssets = (): Plugin => {
 const chunkFor = (id: string): string | undefined => {
   if (!id.includes('node_modules')) return undefined;
   if (/(shiki|@shikijs)[\\/](dist[\\/])?(langs|themes)/.test(id)) return undefined;
-  if (id.includes('@pierre/diffs')) return 'diffs';
-  if (id.includes('shiki') || id.includes('@shikijs')) return 'shiki';
+  if (id.includes('@pierre/diffs') || id.includes('shiki') || id.includes('@shikijs')) {
+    return 'diffs';
+  }
   return undefined;
 };
 

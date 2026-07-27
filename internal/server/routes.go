@@ -112,6 +112,9 @@ func (s *Server) tokenOK(r *http.Request) bool {
 	}
 	got := r.Header.Get(TokenHeader)
 	if got == "" {
+		got = r.Header.Get(LegacyTokenHeader)
+	}
+	if got == "" {
 		got = r.URL.Query().Get(TokenQueryParam)
 	}
 	return subtle.ConstantTimeCompare([]byte(got), []byte(want)) == 1

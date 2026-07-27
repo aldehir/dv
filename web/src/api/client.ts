@@ -9,7 +9,7 @@ import type {
   Session,
 } from './types';
 
-export const TOKEN_HEADER = 'Sec-Dv-Token';
+export const TOKEN_HEADER = 'X-Dv-Token';
 export const TOKEN_META_NAME = 'dv-token';
 export const TOKEN_QUERY_PARAM = 'token';
 export const TOKEN_PLACEHOLDER = '__DV_TOKEN__';
