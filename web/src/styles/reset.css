@@ -12,6 +12,9 @@
 html,
 body {
   height: 100%;
+  /* No pull-to-refresh, no swipe-to-navigate: the app owns the whole viewport
+     and a stray trackpad or touch gesture should never drop the session. */
+  overscroll-behavior: none;
 }
 
 body {

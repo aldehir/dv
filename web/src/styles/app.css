@@ -38,10 +38,16 @@ samp,
 }
 
 /* Quiet, flavor-matched scrollbars. Engines that only do overlay scrollbars
-   (Safari, headless Chromium) ignore the sizing and keep their own. */
+   (Safari, headless Chromium) ignore the sizing and keep their own.
+
+   `overscroll-behavior` is here rather than on named scrollers because the diff
+   library owns its own (`[data-code]`): once an inner scroller runs out of room
+   the leftover chains to the viewport, where it becomes a refresh or a
+   back-navigation. Contain it at every scroller instead. */
 * {
   scrollbar-width: thin;
   scrollbar-color: var(--dv-scroll-thumb) transparent;
+  overscroll-behavior: contain;
 }
 
 ::-webkit-scrollbar {
@@ -388,7 +394,6 @@ samp,
 .dv-tree__list {
   padding-bottom: 0.4rem;
   overflow-y: auto;
-  overscroll-behavior: contain;
 }
 
 .dv-tree__row,
@@ -767,7 +772,6 @@ samp,
 .dv-inbox__section {
   min-height: 0;
   overflow-y: auto;
-  overscroll-behavior: contain;
 }
 
 .dv-inbox__heading {
