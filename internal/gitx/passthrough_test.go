@@ -150,7 +150,13 @@ func TestPassthroughIgnoreWhitespace(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	after := entryFor(t, ignored, "spaced.txt")
+	// Git 2.54 drops a path whose every change is whitespace from --raw and
+	// --numstat outright; older git still lists it at +0 -0. Either way the flag
+	// reached git, which is all this passthrough test is about.
+	after, listed := lookupEntry(ignored, "spaced.txt")
+	if !listed {
+		return
+	}
 	if after.Additions != 0 || after.Deletions != 0 {
 		t.Errorf("-w did not reach numstat; spaced.txt = +%d -%d", after.Additions, after.Deletions)
 	}

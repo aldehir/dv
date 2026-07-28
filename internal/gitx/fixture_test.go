@@ -193,13 +193,20 @@ func (f *fixture) nameOnly(args ...string) []string {
 
 func entryFor(t *testing.T, m *model.Manifest, path string) model.FileEntry {
 	t.Helper()
+	e, ok := lookupEntry(m, path)
+	if !ok {
+		t.Fatalf("no manifest entry for %q (have %v)", path, manifestPaths(m))
+	}
+	return e
+}
+
+func lookupEntry(m *model.Manifest, path string) (model.FileEntry, bool) {
 	for _, e := range m.Files {
 		if e.Path == path {
-			return e
+			return e, true
 		}
 	}
-	t.Fatalf("no manifest entry for %q (have %v)", path, manifestPaths(m))
-	return model.FileEntry{}
+	return model.FileEntry{}, false
 }
 
 func manifestPaths(m *model.Manifest) []string {
