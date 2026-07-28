@@ -12,8 +12,8 @@ jobs:
   go:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
         with:
           go-version: '1.25'
           cache: true
@@ -33,7 +33,7 @@ jobs:
       run:
         working-directory: web
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: '1.3.14'
@@ -41,7 +41,7 @@ jobs:
       - run: bun run typecheck
       - run: bun run test
       - run: bun run build
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: web-dist
           path: web/dist
@@ -51,17 +51,15 @@ jobs:
     needs: web
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 2
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
         with:
           go-version: '1.25'
           cache: true
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: '1.3.14'
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: web-dist
           path: web/dist
@@ -73,7 +71,7 @@ jobs:
       - name: smoke test
         working-directory: web
         run: bun run test:e2e
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: failure()
         with:
           name: playwright-report
@@ -99,12 +97,12 @@ jobs:
             goarch: amd64
             ext: .exe
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
         with:
           go-version: '1.25'
           cache: true
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: web-dist
           path: web/dist
@@ -119,7 +117,7 @@ jobs:
           out="dv-${GOOS}-${GOARCH}${{ matrix.ext }}"
           go build -trimpath -ldflags="-s -w -X main.version=${version}" -o "dist/${out}" .
           echo "artifact=dist/${out}" >> "$GITHUB_ENV"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: dv-${{ matrix.goos }}-${{ matrix.goarch }}
           path: ${{ env.artifact }}
