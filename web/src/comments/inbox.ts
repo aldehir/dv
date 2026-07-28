@@ -4,6 +4,7 @@ import { createDisposer } from '../core/component';
 import { clear, el, frag, on } from '../core/dom';
 import type { AppStore } from '../core/store';
 import type { Viewer } from '../diff/viewer';
+import { icon } from '../ui/icons';
 import type { Thread } from './anchors';
 import type { CommentsStore } from './store';
 import { locationLabel } from './thread';
@@ -24,14 +25,25 @@ export const createInbox = ({ store, bus, comments, viewer }: InboxDeps): Compon
   const disposer = createDisposer();
   let visible: Thread[] = [];
   let focused: string | null = null;
+  let armed = false;
 
   const meta = el('div', { class: 'dv-inbox__meta' });
   const anchoredList = el('ul', { class: 'dv-inbox__list' });
   const staleList = el('ul', { class: 'dv-inbox__list' });
+  const clearButton = el('button', {
+    class: 'dv-btn dv-inbox__clear',
+    type: 'button',
+    title: 'Delete every unanchored comment',
+  });
   const staleSection = el(
     'section',
     { class: 'dv-inbox__section', hidden: true },
-    el('h3', { class: 'dv-inbox__heading', textContent: 'Unanchored' }),
+    el(
+      'div',
+      { class: 'dv-inbox__heading-row' },
+      el('h3', { class: 'dv-inbox__heading', textContent: 'Unanchored' }),
+      clearButton,
+    ),
     staleList,
   );
 
@@ -65,7 +77,18 @@ export const createInbox = ({ store, bus, comments, viewer }: InboxDeps): Compon
       ),
     );
     button.setAttribute('aria-current', String(thread.id === focused));
-    return el('li', null, button);
+    const remove = el(
+      'button',
+      {
+        class: 'dv-icon-btn dv-inbox__delete',
+        type: 'button',
+        ariaLabel: 'Delete this comment',
+        title: 'Delete this comment',
+        data: { deleteId: thread.id },
+      },
+      icon('trash'),
+    );
+    return el('li', { class: 'dv-inbox__item' }, button, remove);
   };
 
   const render = (): void => {
@@ -81,6 +104,8 @@ export const createInbox = ({ store, bus, comments, viewer }: InboxDeps): Compon
     clear(staleList);
     staleList.appendChild(frag(...stale.map(row)));
     staleSection.hidden = stale.length === 0;
+    clearButton.textContent = armed ? `Delete ${stale.length}?` : 'Clear';
+    clearButton.classList.toggle('dv-inbox__clear--armed', armed);
 
     const failure = comments.error();
     if (failure !== null) meta.textContent = failure;
@@ -103,15 +128,50 @@ export const createInbox = ({ store, bus, comments, viewer }: InboxDeps): Compon
     if (target) focus(target);
   };
 
+  // Each delete is written against the etag the last one handed back, so a whole
+  // section has to go one at a time; a refusal means the rest would fail too.
+  const purge = async (doomed: readonly Thread[]): Promise<void> => {
+    for (const thread of doomed) {
+      if (!(await comments.remove(thread.id))) break;
+    }
+  };
+
+  const disarm = (): void => {
+    if (!armed) return;
+    armed = false;
+    render();
+  };
+
   disposer.add(
     on(root, 'click', (event) => {
+      // The trash glyph is an SVG, so the target is not always an HTMLElement.
       const target = event.target;
-      if (!(target instanceof HTMLElement)) return;
+      if (!(target instanceof Element)) return;
+      const doomed = target.closest<HTMLElement>('[data-delete-id]')?.dataset.deleteId;
+      if (doomed !== undefined) {
+        void comments.remove(doomed);
+        return;
+      }
       const id = target.closest<HTMLElement>('[data-comment-id]')?.dataset.commentId;
       const thread = id === undefined ? undefined : visible.find((item) => item.id === id);
       if (thread) focus(thread);
     }),
   );
+  // Clearing a section cannot be undone, so the first click only arms the button.
+  disposer.add(
+    on(clearButton, 'click', () => {
+      const stale = visible.filter((thread) => thread.stale);
+      if (stale.length === 0) return;
+      if (!armed) {
+        armed = true;
+        render();
+        return;
+      }
+      armed = false;
+      void purge(stale);
+    }),
+  );
+  disposer.add(on(clearButton, 'blur', disarm));
   disposer.add(bus.on('comment:step', ({ delta }) => step(delta)));
   disposer.add(
     bus.on('comment:focus', ({ id }) => {

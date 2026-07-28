@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { expect, test, type Page } from '@playwright/test';
 import { COMMENTS_PATH } from '../playwright.config';
 import { waitForDiff } from './ready';
@@ -198,6 +198,100 @@ test('comment survives a reload and lands in comments.json', async ({ page }) =>
   expect(stored.anchor.quote.length).toBeGreaterThan(0);
 
   await expect(page.locator('.dv-shell__panel')).toBeAttached();
+});
+
+/**
+ * Hands the inbox tests a store of their own, so a line another test has
+ * already commented on cannot deny them a draft box.
+ *
+ * The seeds carry the `resolvedAnchor` the server would compute for a quoteless
+ * anchor. Getting that wrong is not cosmetic: re-anchoring writes the file back
+ * whenever it changes the document, and the page would then be holding an etag
+ * the next delete is rejected for.
+ */
+const resetComments = (stale: readonly string[] = []): void => {
+  const doc = JSON.parse(readFileSync(COMMENTS_PATH, 'utf8'));
+  doc.comments = stale.map((body, index) => ({
+    id: `e2e-stale-${index}`,
+    author: { name: 'e2e' },
+    createdAt: '2026-07-27T00:00:00Z',
+    updatedAt: '2026-07-27T00:00:00Z',
+    body,
+    anchor: {
+      path: 'src/new-feature.ts',
+      prevPath: null,
+      side: 'additions',
+      startLine: 2,
+      endLine: 2,
+      blobSha: '',
+      quote: '',
+      contextBefore: [],
+      contextAfter: [],
+    },
+    resolvedAnchor: { stale: true, movedFrom: null, rule: 'no-quote' },
+    replies: [],
+  }));
+  writeFileSync(COMMENTS_PATH, JSON.stringify(doc, null, 2));
+};
+
+const commentOnLine = async (page: Page, index: number, body: string) => {
+  await page.locator('diffs-container [data-line-number-content]').nth(index).click();
+  const draft = page.locator(`.${DRAFT_INPUT}`);
+  await expect(draft).toBeVisible();
+  await draft.fill(body);
+  await page.locator('.dv-thread__card--draft [aria-label="Save this comment"]').click();
+  await expect(page.locator('.dv-thread__card--draft')).toHaveCount(0);
+};
+
+test('the inbox deletes the comment whose row was clicked', async ({ page }) => {
+  resetComments();
+  await page.reload();
+  await openFirstFile(page);
+
+  const bodies = ['e2e keep this one', 'e2e drop this one'];
+  await commentOnLine(page, 0, bodies[0] ?? '');
+  await commentOnLine(page, 2, bodies[1] ?? '');
+
+  await page.locator('[aria-label="Toggle the comment inbox"]').click();
+  const rows = page.locator('.dv-inbox__item');
+  await expect(rows).toHaveCount(2);
+
+  // The trash sits beside the row, not inside it — a nested button would be
+  // illegal — so the click has to route past the row's own focus handler.
+  await rows.filter({ hasText: bodies[1] ?? '' }).locator('.dv-inbox__delete').click();
+
+  await expect(rows).toHaveCount(1);
+  await expect(page.locator('.dv-inbox')).toContainText(bodies[0] ?? '');
+  await expect
+    .poll(() => readFileSync(COMMENTS_PATH, 'utf8'), { timeout: 15_000 })
+    .not.toContain(bodies[1] ?? '');
+  expect(readFileSync(COMMENTS_PATH, 'utf8')).toContain(bodies[0] ?? '');
+});
+
+test('clearing the unanchored section takes two clicks', async ({ page }) => {
+  resetComments(['e2e stale one', 'e2e stale two']);
+  await page.reload();
+  await openFirstFile(page);
+
+  const anchored = 'e2e still anchored';
+  await commentOnLine(page, 0, anchored);
+
+  await page.locator('[aria-label="Toggle the comment inbox"]').click();
+  const section = page.locator('.dv-inbox__section').last();
+  await expect(section.locator('.dv-inbox__item')).toHaveCount(2);
+
+  const clear = page.locator('.dv-inbox__clear');
+  await clear.click();
+  await expect(clear).toHaveText('Delete 2?');
+  await expect(section.locator('.dv-inbox__item')).toHaveCount(2);
+
+  await clear.click();
+  await expect(section).toBeHidden();
+  await expect
+    .poll(() => readFileSync(COMMENTS_PATH, 'utf8'), { timeout: 15_000 })
+    .not.toContain('e2e stale');
+  // The anchored comment is not the section's to take.
+  expect(readFileSync(COMMENTS_PATH, 'utf8')).toContain(anchored);
 });
 
 test('the draft box follows the selection without chasing the drag', async ({ page }) => {

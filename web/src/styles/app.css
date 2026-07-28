@@ -856,31 +856,59 @@ samp,
   overflow-y: auto;
 }
 
-.dv-inbox__heading {
+.dv-inbox__heading-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  justify-content: space-between;
   padding: 0.3rem 0.6rem;
+}
+
+.dv-inbox__heading {
   color: var(--dv-fg-muted);
   font-size: 1em;
   font-weight: 600;
+}
+
+/* The pointer is still on the button when it arms, so this has to outrank
+   `.dv-btn:hover` or the warning never shows. */
+.dv-inbox__clear--armed,
+.dv-inbox__clear--armed:hover {
+  color: var(--dv-base);
+  background: var(--dv-removed);
 }
 
 .dv-inbox__list {
   list-style: none;
 }
 
-.dv-inbox__row {
-  display: grid;
+.dv-inbox__item {
+  display: flex;
   gap: 0.2rem;
-  width: 100%;
-  padding: 0.35rem 0.6rem;
-  text-align: left;
+  align-items: center;
+  padding-right: 0.35rem;
   border-bottom: 1px solid var(--dv-border);
 }
 
-.dv-inbox__row:hover {
+.dv-inbox__item:hover {
   background: var(--dv-bg-hover);
 }
 
-.dv-inbox__row[aria-current='true'] {
+.dv-inbox__item:has([aria-current='true']) {
+  background: var(--dv-bg-active);
+}
+
+.dv-inbox__row {
+  display: grid;
+  flex: 1 1 auto;
+  gap: 0.2rem;
+  min-width: 0;
+  padding: 0.35rem 0.6rem;
+  text-align: left;
+}
+
+.dv-inbox__delete:hover {
+  color: var(--dv-removed);
   background: var(--dv-bg-active);
 }
 
