@@ -44,11 +44,17 @@ export default defineConfig({
   retries: process.env.CI ? 1 : 0,
   timeout: 60_000,
   expect: { timeout: 15_000 },
-  reporter: process.env.CI ? 'github' : 'list',
+  // `github` annotates the failing lines but writes nothing to disk; pair it
+  // with `html` so a red run leaves behind a report worth uploading.
+  reporter: process.env.CI ? [['github'], ['html', { open: 'never' }]] : 'list',
   use: {
     baseURL: `http://127.0.0.1:${PORT}`,
     ...devices['Desktop Chrome'],
     launchOptions,
+    // A browser test that only fails on a CI runner is unfixable from the log
+    // alone. Keep the trace and the last frame.
+    trace: 'retain-on-failure',
+    screenshot: 'only-on-failure',
   },
   webServer: {
     // The fixture is rebuilt here rather than in globalSetup because dv is

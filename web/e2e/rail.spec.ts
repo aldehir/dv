@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { waitForDiff } from './ready';
 
 const rail = (page: Page) => page.locator('.dv-rail');
 const box = (page: Page) => page.locator('.dv-rail__view');
@@ -8,20 +9,11 @@ const scrollTop = (page: Page) =>
 
 const boxTop = async (page: Page) => (await box(page).boundingBox())?.y ?? 0;
 
-const overflow = (page: Page) =>
-  page.evaluate(() => {
-    const mount = document.querySelector('.dv-shell__mount');
-    return mount ? mount.scrollHeight - mount.clientHeight : 0;
-  });
-
 test.beforeEach(async ({ page }) => {
   await page.goto('/');
-  await expect(page.locator('diffs-container').first()).toBeVisible();
+  // A visible rail is not yet a working one — see `waitForDiff`.
+  await waitForDiff(page);
   await expect(rail(page)).toBeVisible();
-  // A visible rail is not yet a working one: until enough of the diff has
-  // streamed in for the mount to overflow, a press on the track has nowhere to
-  // send the box.
-  await expect.poll(() => overflow(page)).toBeGreaterThan(0);
 });
 
 test('drags the diff by the box', async ({ page }) => {
@@ -42,13 +34,19 @@ test('drags the diff by the box', async ({ page }) => {
 
 test('sends the box to a press on the track', async ({ page }) => {
   const track = await rail(page).boundingBox();
-  if (!track) throw new Error('expected a rail');
-  const before = await boxTop(page);
+  const start = await box(page).boundingBox();
+  if (!track || !start) throw new Error('expected a rail and a box');
 
-  await page.mouse.click(track.x + track.width / 2, track.y + track.height * 0.8);
+  // Press below the box rather than at a fixed fraction of the track: the box is
+  // as tall as the viewport is of the diff, and a press that lands inside it is
+  // a drag that never moves.
+  const below = Math.min(start.y + start.height + 8, track.y + track.height - 2);
+  await page.mouse.click(track.x + track.width / 2, below);
 
-  expect(await scrollTop(page)).toBeGreaterThan(0);
-  expect(await boxTop(page)).toBeGreaterThan(before);
+  // The press hands off to the viewer's scroller, which settles on its own
+  // schedule; read the outcome, not the frame the click happened on.
+  await expect.poll(() => scrollTop(page)).toBeGreaterThan(0);
+  await expect.poll(() => boxTop(page)).toBeGreaterThan(start.y);
 });
 
 test('rolls the wheel over the rail into the diff', async ({ page }) => {

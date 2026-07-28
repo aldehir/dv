@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { expect, test, type Page } from '@playwright/test';
 import { COMMENTS_PATH } from '../playwright.config';
+import { waitForDiff } from './ready';
 
 const firstFileRow = (page: Page) => page.locator('.dv-tree__row').first();
 
@@ -27,11 +28,6 @@ const collectTokenStyles = (): string =>
     .map((span) => span.getAttribute('style') ?? '')
     .join(' ')
     .toUpperCase();
-
-const waitForDiff = async (page: Page) => {
-  await expect(page.locator('diffs-container').first()).toBeVisible();
-  await expect(page.locator('.dv-tree__row').first()).toBeVisible();
-};
 
 const openFirstFile = async (page: Page) => {
   await waitForDiff(page);
@@ -207,7 +203,10 @@ test('comment survives a reload and lands in comments.json', async ({ page }) =>
 test('the draft box follows the selection without chasing the drag', async ({ page }) => {
   await openHighlightableFile(page);
 
-  const gutter = page.locator('diffs-container [data-line-number-content]');
+  // Scope the gutter to one file: a range cannot span two, so indices taken
+  // across every mounted container would silently drag from one file into the
+  // next and collapse back to the line it started on.
+  const gutter = page.locator('diffs-container').first().locator('[data-line-number-content]');
   const card = page.locator('.dv-thread__card--draft');
   const draft = page.locator(`.${DRAFT_INPUT}`);
   const selection = () => page.locator('.dv-status__selection').textContent();
@@ -223,7 +222,9 @@ test('the draft box follows the selection without chasing the drag', async ({ pa
   const target = await gutter.nth(8).boundingBox();
   if (!target) throw new Error('nothing to drag to');
   await page.mouse.move(target.x + target.width / 2, target.y + target.height / 2, { steps: 8 });
-  expect(await selection()).toContain('-');
+  // The range lands a frame behind the pointer, so poll for it — but the box
+  // must not have moved by the time it does.
+  await expect.poll(selection).toContain('-');
   expect((await card.boundingBox())?.y).toBe(parked);
 
   await page.mouse.up();
