@@ -66,7 +66,6 @@ const manifest = (): Manifest => ({
 /** `edited` stands in for any later revision: it moves the annotation signature. */
 const comment = (id: string, edited = false): Comment => ({
   id,
-  author: { name: 'alde' },
   createdAt: '2026-07-26T18:00:00Z',
   updatedAt: `2026-07-26T18:00:0${edited ? 1 : 0}Z`,
   body: 'take a look',

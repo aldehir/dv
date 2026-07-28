@@ -11,7 +11,6 @@ const HOSTILE = '<img src=x onerror="alert(1)"><script>alert(2)</script>**bold**
 
 const comment = (over: Partial<Comment> = {}): Comment => ({
   id: 'c1',
-  author: { name: 'alde' },
   createdAt: '2026-07-26T18:00:00Z',
   updatedAt: '2026-07-26T18:00:00Z',
   body: 'looks wrong',
@@ -84,7 +83,6 @@ describe('createCardList', () => {
     );
 
     expect(labels).toEqual(['Save this comment', 'Delete this comment']);
-    expect(list.el.querySelector('.dv-thread__author')).toBeNull();
     expect(list.el.querySelector('.dv-thread__time')).toBeNull();
     expect(list.el.querySelector('.dv-thread__status')).toBeNull();
     expect(list.el.querySelector('.dv-thread__reply')).toBeNull();

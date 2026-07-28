@@ -34,7 +34,7 @@ the porcelain rather than a git implementation:
 
 | File | Job |
 |---|---|
-| `repo.go` | discovery, `Author`, `Head`, the `Options` knobs |
+| `repo.go` | discovery, `Head`, the `Options` knobs |
 | `revspec.go` | argv → `RevSpec`; decides worktree/staged/two-dot/three-dot |
 | `raw.go` | parses `git diff --raw -z` into the manifest; `FileID` |
 | `patch.go` | per-file `git diff` patch text |

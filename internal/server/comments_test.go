@@ -45,9 +45,6 @@ func TestCreateCommentFillsAnchorServerSide(t *testing.T) {
 	if strings.Join(anchor.ContextAfter, "|") != strings.Join(wantAfter, "|") {
 		t.Errorf("anchor.contextAfter = %q, want %q", anchor.ContextAfter, wantAfter)
 	}
-	if comment.Author.Name != "Fixture User" {
-		t.Errorf("author.name = %q, want Fixture User", comment.Author.Name)
-	}
 }
 
 func TestCreateCommentOnDeletionsSide(t *testing.T) {

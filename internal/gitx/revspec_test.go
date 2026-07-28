@@ -369,7 +369,7 @@ func TestOpenNotARepo(t *testing.T) {
 	}
 }
 
-func TestOpenAndHeadAndAuthor(t *testing.T) {
+func TestOpenAndHead(t *testing.T) {
 	f := grammarFixture(t)
 	r := f.repo()
 	if r.Root != f.Root {
@@ -384,13 +384,6 @@ func TestOpenAndHeadAndAuthor(t *testing.T) {
 	}
 	if head != f.rev("HEAD") {
 		t.Errorf("Head = %q, want %q", head, f.rev("HEAD"))
-	}
-	author, err := r.Author()
-	if err != nil {
-		t.Fatalf("Author: %v", err)
-	}
-	if author.Name != "Fixture User" || author.Email != "fixture@example.com" {
-		t.Errorf("Author = %+v", author)
 	}
 }
 

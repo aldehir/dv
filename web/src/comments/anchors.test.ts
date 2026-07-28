@@ -38,7 +38,6 @@ const comment = ({
   replies = 0,
 }: CommentOverrides = {}): Comment => ({
   id,
-  author: { name: 'Alde Rojas' },
   createdAt: '2026-07-26T18:00:00Z',
   updatedAt,
   body: 'retries forever',
@@ -56,7 +55,6 @@ const comment = ({
   resolvedAnchor: { stale, movedFrom: null },
   replies: Array.from({ length: replies }, (_ignored, index) => ({
     id: `r${index}`,
-    author: { name: 'agent' },
     createdAt: '2026-07-26T19:00:00Z',
     body: 'fixed',
   })),

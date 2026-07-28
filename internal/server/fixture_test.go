@@ -157,7 +157,6 @@ func newHarness(t *testing.T, f *fixture, configure func(*harnessOptions)) *harn
 			Repo:      model.RepoRef{Root: f.Root},
 			Spec:      spec.Model(),
 			Generator: "dv/test",
-			Author:    model.Author{Name: "Fixture User", Email: "fixture@example.com"},
 			Logger:    logger,
 		})
 		if err != nil {

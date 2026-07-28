@@ -56,7 +56,6 @@ const thread = (id: string): Thread => ({
   pending: false,
   comment: {
     id,
-    author: { name: 'alde' },
     createdAt: '2026-07-26T00:00:00Z',
     updatedAt: '2026-07-26T00:00:00Z',
     body: 'looks off',

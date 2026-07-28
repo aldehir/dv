@@ -43,7 +43,6 @@ type Config struct {
 	Repo         model.RepoRef
 	Spec         model.Spec
 	Generator    string
-	Author       model.Author
 	Logger       *slog.Logger
 	Now          func() time.Time
 	OnFirstWrite func(path string)
@@ -61,7 +60,6 @@ type Store struct {
 	repo         model.RepoRef
 	spec         model.Spec
 	generator    string
-	author       model.Author
 	log          *slog.Logger
 	now          func() time.Time
 	onFirstWrite func(string)
@@ -103,7 +101,6 @@ func New(cfg Config) (*Store, error) {
 		repo:         cfg.Repo,
 		spec:         cfg.Spec,
 		generator:    generator,
-		author:       cfg.Author,
 		log:          logger,
 		now:          nowFn,
 		onFirstWrite: cfg.OnFirstWrite,
@@ -157,7 +154,7 @@ func (s *Store) loadLocked() (*model.CommentsDoc, string, error) {
 		return s.quarantineLocked(err)
 	}
 
-	issues := repair(doc, s.nowString(), s.author)
+	issues := repair(doc, s.nowString())
 	sortComments(doc)
 	s.report = Report{Issues: issues}
 	if len(issues) > 0 {
@@ -254,11 +251,7 @@ func (s *Store) saveLocked(doc *model.CommentsDoc) (string, error) {
 	return etag, nil
 }
 
-func (s *Store) Add(anchor model.Anchor, body string) (*model.Comment, string, error) {
-	return s.AddAs(anchor, body, model.Author{}, "")
-}
-
-func (s *Store) AddAs(anchor model.Anchor, body string, author model.Author, ifMatch string) (*model.Comment, string, error) {
+func (s *Store) Add(anchor model.Anchor, body, ifMatch string) (*model.Comment, string, error) {
 	body = strings.TrimRight(body, " \t\n")
 	if strings.TrimSpace(body) == "" {
 		return nil, "", fmt.Errorf("%w: comment body is empty", ErrInvalid)
@@ -279,7 +272,6 @@ func (s *Store) AddAs(anchor model.Anchor, body string, author model.Author, ifM
 	now := s.nowString()
 	created := model.Comment{
 		ID:        newID(commentIDPrefix),
-		Author:    firstAuthor(author, s.author),
 		CreatedAt: now,
 		UpdatedAt: now,
 		Body:      body,
@@ -336,7 +328,7 @@ func (s *Store) Delete(id, ifMatch string) (string, error) {
 	})
 }
 
-func (s *Store) AddReply(id, body string, author model.Author, ifMatch string) (*model.Reply, string, error) {
+func (s *Store) AddReply(id, body, ifMatch string) (*model.Reply, string, error) {
 	if strings.TrimSpace(body) == "" {
 		return nil, "", fmt.Errorf("%w: reply body is empty", ErrInvalid)
 	}
@@ -349,7 +341,6 @@ func (s *Store) AddReply(id, body string, author model.Author, ifMatch string) (
 		now := s.nowString()
 		reply := model.Reply{
 			ID:        newID(replyIDPrefix),
-			Author:    firstAuthor(author, s.author),
 			CreatedAt: now,
 			Body:      strings.TrimRight(body, " \t\n"),
 		}
@@ -402,15 +393,6 @@ func cloneComment(c model.Comment) model.Comment {
 		c.ResolvedAnchor = &ra
 	}
 	return c
-}
-
-func firstAuthor(candidates ...model.Author) model.Author {
-	for _, a := range candidates {
-		if strings.TrimSpace(a.Name) != "" {
-			return a
-		}
-	}
-	return model.Author{Name: "unknown"}
 }
 
 func serialize(doc *model.CommentsDoc) ([]byte, error) {

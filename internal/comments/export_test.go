@@ -25,7 +25,6 @@ func goldenDoc() *model.CommentsDoc {
 		Comments: []model.Comment{
 			{
 				ID:        "cmt_01J8ZQ4K",
-				Author:    model.Author{Name: "Alde Rojas", Email: "alde@example.com"},
 				CreatedAt: "2026-07-26T18:00:00Z",
 				UpdatedAt: "2026-07-26T18:03:00Z",
 				Body:      "This retries forever if the context is already cancelled.",
@@ -46,14 +45,12 @@ func goldenDoc() *model.CommentsDoc {
 				},
 				Replies: []model.Reply{{
 					ID:        "rpl_01J8ZQ7P",
-					Author:    model.Author{Name: "agent"},
 					CreatedAt: "2026-07-26T18:03:00Z",
 					Body:      "Fixed in 3f1a — added a ctx.Err() check.\nAlso added a test.",
 				}},
 			},
 			{
 				ID:        "cmt_01J8ZQ5M",
-				Author:    model.Author{Name: "Alde Rojas"},
 				CreatedAt: "2026-07-26T18:01:00Z",
 				UpdatedAt: "2026-07-26T18:02:00Z",
 				Body:      "Dead code.",
@@ -109,7 +106,6 @@ func TestExportMarkdownGolden(t *testing.T) {
 		"\n" +
 		"- Side: additions (new)\n" +
 		"- Language: go\n" +
-		"- Author: Alde Rojas <alde@example.com>\n" +
 		"- Created: 2026-07-26T18:00:00Z\n" +
 		"- Anchor moved from lines 4-5 (rule: quote)\n" +
 		"\n" +
@@ -122,12 +118,11 @@ func TestExportMarkdownGolden(t *testing.T) {
 		"\n" +
 		"### Replies\n" +
 		"\n" +
-		"- **agent** (2026-07-26T18:03:00Z): Fixed in 3f1a — added a ctx.Err() check. Also added a test.\n" +
+		"- 2026-07-26T18:03:00Z: Fixed in 3f1a — added a ctx.Err() check. Also added a test.\n" +
 		"\n" +
 		"## web/src/main.ts:9\n" +
 		"\n" +
 		"- Side: deletions (old)\n" +
-		"- Author: Alde Rojas\n" +
 		"- Created: 2026-07-26T18:01:00Z\n" +
 		"- Anchor is stale (rule: gone) — the line numbers may be wrong, find the code by the quoted lines\n" +
 		"\n" +
@@ -171,7 +166,7 @@ func TestExportPromptGolden(t *testing.T) {
 		"This retries forever if the context is already cancelled.\n" +
 		"\n" +
 		"Replies:\n" +
-		"- agent: Fixed in 3f1a — added a ctx.Err() check. Also added a test.\n" +
+		"- Fixed in 3f1a — added a ctx.Err() check. Also added a test.\n" +
 		"\n" +
 		"## 2. web/src/main.ts line 9 (old side)\n" +
 		"\n" +
@@ -212,10 +207,6 @@ func TestExportJSONGolden(t *testing.T) {
   "comments": [
     {
       "id": "cmt_01J8ZQ4K",
-      "author": {
-        "name": "Alde Rojas",
-        "email": "alde@example.com"
-      },
       "createdAt": "2026-07-26T18:00:00Z",
       "updatedAt": "2026-07-26T18:03:00Z",
       "body": "This retries forever if the context is already cancelled.",
@@ -246,9 +237,6 @@ func TestExportJSONGolden(t *testing.T) {
       "replies": [
         {
           "id": "rpl_01J8ZQ7P",
-          "author": {
-            "name": "agent"
-          },
           "createdAt": "2026-07-26T18:03:00Z",
           "body": "Fixed in 3f1a — added a ctx.Err() check.\nAlso added a test."
         }
@@ -256,9 +244,6 @@ func TestExportJSONGolden(t *testing.T) {
     },
     {
       "id": "cmt_01J8ZQ5M",
-      "author": {
-        "name": "Alde Rojas"
-      },
       "createdAt": "2026-07-26T18:01:00Z",
       "updatedAt": "2026-07-26T18:02:00Z",
       "body": "Dead code.",

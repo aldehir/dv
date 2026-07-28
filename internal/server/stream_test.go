@@ -166,7 +166,6 @@ func TestCommentsStreamPushesExternalWrites(t *testing.T) {
 		}
 		doc.Comments[0].Replies = append(doc.Comments[0].Replies, model.Reply{
 			ID:        "rpl_external",
-			Author:    model.Author{Name: "agent"},
 			CreatedAt: "2026-07-26T00:00:00Z",
 			Body:      "changed it",
 		})

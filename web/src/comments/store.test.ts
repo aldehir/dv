@@ -51,7 +51,6 @@ const manifest = (): Manifest => ({
 
 const comment = (id: string, path = 'src/a.ts', stale = false): Comment => ({
   id,
-  author: { name: 'alde' },
   createdAt: '2026-07-26T18:00:00Z',
   updatedAt: '2026-07-26T18:00:00Z',
   body: `body ${id}`,
@@ -139,7 +138,6 @@ const harness = (over: Partial<ApiClient> = {}): Harness => {
       Promise.resolve({
         value: {
           id: `${id}-r1`,
-          author: { name: 'agent' },
           createdAt: '2026-07-26T19:00:00Z',
           body: 'done',
         },

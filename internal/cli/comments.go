@@ -74,7 +74,7 @@ func listComments(argv []string, stdout, stderr io.Writer) int {
 
 func writeComment(w io.Writer, c model.Comment) {
 	fmt.Fprintf(w, "%s  %s\n", anchorLabel(c.Anchor), c.ID)
-	fmt.Fprintf(w, "    %s  %s\n", author(c.Author), c.UpdatedAt)
+	fmt.Fprintf(w, "    %s\n", c.UpdatedAt)
 	if c.ResolvedAnchor != nil {
 		switch {
 		case c.ResolvedAnchor.Stale:
@@ -87,7 +87,7 @@ func writeComment(w io.Writer, c model.Comment) {
 		fmt.Fprintf(w, "    %s\n", line)
 	}
 	for _, reply := range c.Replies {
-		fmt.Fprintf(w, "    reply %s: %s\n", reply.Author.Name, oneLine(reply.Body))
+		fmt.Fprintf(w, "    reply: %s\n", oneLine(reply.Body))
 	}
 	fmt.Fprintln(w)
 }
@@ -222,13 +222,6 @@ func anchorLabel(a model.Anchor) string {
 	default:
 		return fmt.Sprintf("%s:%d", a.Path, a.StartLine)
 	}
-}
-
-func author(a model.Author) string {
-	if a.Email == "" {
-		return a.Name
-	}
-	return fmt.Sprintf("%s <%s>", a.Name, a.Email)
 }
 
 func rule(name string) string {

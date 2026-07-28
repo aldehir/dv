@@ -20,21 +20,19 @@ func seedFile(t *testing.T) string {
 		UpdatedAt: "2026-07-26T18:04:11Z",
 		Comments: []model.Comment{
 			{
-				ID:     "cmt_open",
-				Author: model.Author{Name: "Alde", Email: "alde@example.com"},
-				Body:   "retries forever",
+				ID:   "cmt_open",
+				Body: "retries forever",
 				Anchor: model.Anchor{
 					Path: "internal/gitx/blob.go", Side: model.SideAdditions,
 					StartLine: 42, EndLine: 44, Quote: "for {\n\tnext()\n}",
 					ContextBefore: []string{}, ContextAfter: []string{},
 				},
 				ResolvedAnchor: &model.ResolvedAnchor{Stale: true, Rule: "gone"},
-				Replies:        []model.Reply{{ID: "rpl_1", Author: model.Author{Name: "agent"}, Body: "fixed\nin 3f1a"}},
+				Replies:        []model.Reply{{ID: "rpl_1", Body: "fixed\nin 3f1a"}},
 			},
 			{
-				ID:     "cmt_done",
-				Author: model.Author{Name: "Alde"},
-				Body:   "nit: naming",
+				ID:   "cmt_done",
+				Body: "nit: naming",
 				Anchor: model.Anchor{
 					Path: "web/src/main.ts", Side: model.SideAdditions, StartLine: 7, EndLine: 7,
 					Quote: "const x = 1", ContextBefore: []string{}, ContextAfter: []string{},
@@ -120,7 +118,7 @@ func TestListReportsStaleAnchors(t *testing.T) {
 	if !strings.Contains(stdout, "stale anchor (gone)") {
 		t.Errorf("a stale anchor was not flagged:\n%s", stdout)
 	}
-	if !strings.Contains(stdout, "reply agent: fixed in 3f1a") {
+	if !strings.Contains(stdout, "reply: fixed in 3f1a") {
 		t.Errorf("replies are not folded onto one line:\n%s", stdout)
 	}
 }

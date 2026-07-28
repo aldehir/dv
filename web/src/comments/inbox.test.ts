@@ -10,7 +10,6 @@ import type { CommentsStore } from './store';
 
 const comment = (over: Partial<Comment> = {}): Comment => ({
   id: 'c1',
-  author: { name: 'alde' },
   createdAt: '2026-07-26T18:00:00Z',
   updatedAt: '2026-07-26T18:00:00Z',
   body: 'looks wrong',

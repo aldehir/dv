@@ -65,7 +65,6 @@ func TestWatchPushesOnAnExternalWrite(t *testing.T) {
 
 	agentWrite(t, s, model.Comment{
 		ID:        "cmt_agent",
-		Author:    model.Author{Name: "agent"},
 		CreatedAt: "2026-07-26T18:00:00Z",
 		Body:      "landed the fix",
 		Anchor: model.Anchor{
@@ -141,7 +140,6 @@ func TestWatchCoalescesABurstOfWrites(t *testing.T) {
 	for i := range 20 {
 		agentWrite(t, s, model.Comment{
 			ID:        "cmt_burst",
-			Author:    model.Author{Name: "agent"},
 			CreatedAt: "2026-07-26T18:00:00Z",
 			Body:      "burst " + strings.Repeat("!", i),
 			Anchor: model.Anchor{

@@ -59,7 +59,7 @@ func validate(doc *model.CommentsDoc) error {
 	return nil
 }
 
-func repair(doc *model.CommentsDoc, now string, fallback model.Author) []string {
+func repair(doc *model.CommentsDoc, now string) []string {
 	var issues []string
 	note := func(format string, args ...any) {
 		issues = append(issues, fmt.Sprintf(format, args...))
@@ -73,14 +73,6 @@ func repair(doc *model.CommentsDoc, now string, fallback model.Author) []string 
 	}
 	for i := range doc.Comments {
 		c := &doc.Comments[i]
-		if strings.TrimSpace(c.Author.Name) == "" {
-			if fallback.Name != "" {
-				c.Author = fallback
-			} else {
-				c.Author.Name = "unknown"
-			}
-			note("comment %s had no author, using %q", c.ID, c.Author.Name)
-		}
 		if c.CreatedAt == "" {
 			c.CreatedAt = now
 			note("comment %s had no createdAt", c.ID)
@@ -102,10 +94,6 @@ func repair(doc *model.CommentsDoc, now string, fallback model.Author) []string 
 			if strings.TrimSpace(r.ID) == "" {
 				r.ID = newID(replyIDPrefix)
 				note("comment %s reply %d had no id, assigned %s", c.ID, j, r.ID)
-			}
-			if strings.TrimSpace(r.Author.Name) == "" {
-				r.Author.Name = "unknown"
-				note("comment %s reply %s had no author", c.ID, r.ID)
 			}
 			if r.CreatedAt == "" {
 				r.CreatedAt = c.UpdatedAt

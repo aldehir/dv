@@ -40,7 +40,6 @@ func testConfig(t *testing.T) Config {
 			Argv:  []string{"main", "feature"},
 		},
 		Generator: "dv/0.1.0",
-		Author:    model.Author{Name: "Alde Rojas", Email: "alde@example.com"},
 		Logger:    slog.New(slog.DiscardHandler),
 		Now:       advancingClock(),
 	}
@@ -69,7 +68,7 @@ func anchorAt(path string, start, end int) model.Anchor {
 
 func mustAdd(t *testing.T, s *Store, a model.Anchor, body string) *model.Comment {
 	t.Helper()
-	c, _, err := s.Add(a, body)
+	c, _, err := s.Add(a, body, "")
 	if err != nil {
 		t.Fatalf("Add: %v", err)
 	}
@@ -132,9 +131,6 @@ func TestAddPersistsAndOrdersStably(t *testing.T) {
 		if len(c.ID) != len(commentIDPrefix)+26 {
 			t.Errorf("id %q has length %d, want %d", c.ID, len(c.ID), len(commentIDPrefix)+26)
 		}
-		if c.Author.Name != "Alde Rojas" {
-			t.Errorf("author = %#v", c.Author)
-		}
 		if c.Replies == nil {
 			t.Error("replies must serialize as an array, not null")
 		}
@@ -155,7 +151,7 @@ func TestAddRejectsBadInput(t *testing.T) {
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			if _, _, err := s.Add(tc.anchor, tc.body); !errors.Is(err, ErrInvalid) {
+			if _, _, err := s.Add(tc.anchor, tc.body, ""); !errors.Is(err, ErrInvalid) {
 				t.Fatalf("err = %v, want ErrInvalid", err)
 			}
 		})
@@ -275,9 +271,6 @@ func TestUpdateCannotMutateOwnedFields(t *testing.T) {
 	if updated.CreatedAt != created.CreatedAt {
 		t.Errorf("createdAt changed: %q -> %q", created.CreatedAt, updated.CreatedAt)
 	}
-	if updated.Author != created.Author {
-		t.Errorf("author changed: %#v -> %#v", created.Author, updated.Author)
-	}
 	if updated.Anchor.Path != created.Anchor.Path ||
 		updated.Anchor.StartLine != created.Anchor.StartLine ||
 		updated.Anchor.EndLine != created.Anchor.EndLine ||
@@ -340,26 +333,19 @@ func TestAddReply(t *testing.T) {
 	s := newTestStore(t)
 	c := mustAdd(t, s, anchorAt("a.go", 1, 1), "body")
 
-	reply, _, err := s.AddReply(c.ID, "Fixed in 3f1a.\n", model.Author{Name: "agent"}, "")
+	reply, _, err := s.AddReply(c.ID, "Fixed in 3f1a.\n", "")
 	if err != nil {
 		t.Fatalf("AddReply: %v", err)
 	}
 	if !strings.HasPrefix(reply.ID, replyIDPrefix) {
 		t.Errorf("reply id = %q", reply.ID)
 	}
-	if reply.Author.Name != "agent" {
-		t.Errorf("author = %#v", reply.Author)
-	}
 	if reply.Body != "Fixed in 3f1a." {
 		t.Errorf("body = %q", reply.Body)
 	}
 
-	defaulted, _, err := s.AddReply(c.ID, "second", model.Author{}, "")
-	if err != nil {
+	if _, _, err := s.AddReply(c.ID, "second", ""); err != nil {
 		t.Fatalf("AddReply: %v", err)
-	}
-	if defaulted.Author.Name != "Alde Rojas" {
-		t.Errorf("author = %#v, want the store author", defaulted.Author)
 	}
 
 	doc, _, err := s.Load()
@@ -372,10 +358,10 @@ func TestAddReply(t *testing.T) {
 	if doc.Comments[0].UpdatedAt == c.UpdatedAt {
 		t.Error("a reply should bump the comment updatedAt")
 	}
-	if _, _, err := s.AddReply(c.ID, "  ", model.Author{}, ""); !errors.Is(err, ErrInvalid) {
+	if _, _, err := s.AddReply(c.ID, "  ", ""); !errors.Is(err, ErrInvalid) {
 		t.Fatal("empty reply body should be rejected")
 	}
-	if _, _, err := s.AddReply("cmt_nope", "hi", model.Author{}, ""); !errors.Is(err, ErrNotFound) {
+	if _, _, err := s.AddReply("cmt_nope", "hi", ""); !errors.Is(err, ErrNotFound) {
 		t.Fatal("reply to a missing comment should be ErrNotFound")
 	}
 }
@@ -430,7 +416,7 @@ func TestQuarantineCorruptFile(t *testing.T) {
 				t.Error("the corrupt file should have been moved aside")
 			}
 
-			if _, _, err := s.Add(anchorAt("a.go", 1, 1), "still works"); err != nil {
+			if _, _, err := s.Add(anchorAt("a.go", 1, 1), "still works", ""); err != nil {
 				t.Fatalf("Add after quarantine: %v", err)
 			}
 		})
@@ -450,7 +436,7 @@ func TestLoadToleratesUnknownFieldsAndRepairsGaps(t *testing.T) {
 	      "body": "agent wrote this",
 	      "severity": "nit",
 	      "anchor": {"path": "a.go", "side": "additions", "startLine": 3, "endLine": 4, "extra": true},
-	      "replies": [{"body": "no id and no author here"}]
+	      "replies": [{"body": "no id here"}]
 	    }
 	  ]
 	}`
@@ -469,9 +455,6 @@ func TestLoadToleratesUnknownFieldsAndRepairsGaps(t *testing.T) {
 		t.Fatalf("comments = %#v", doc.Comments)
 	}
 	c := doc.Comments[0]
-	if c.Author.Name != "Alde Rojas" {
-		t.Errorf("author = %#v, want the configured fallback", c.Author)
-	}
 	if c.CreatedAt == "" || c.UpdatedAt == "" {
 		t.Errorf("timestamps not filled: %#v", c)
 	}
@@ -518,7 +501,7 @@ func TestWriteIsAtomicRenameNotTruncate(t *testing.T) {
 	if err := os.Chmod(s.Path(), 0o400); err != nil {
 		t.Fatalf("chmod: %v", err)
 	}
-	if _, _, err := s.Add(anchorAt("b.go", 1, 1), "second"); err != nil {
+	if _, _, err := s.Add(anchorAt("b.go", 1, 1), "second", ""); err != nil {
 		t.Fatalf("Add over a read-only file must succeed via rename: %v", err)
 	}
 
@@ -638,18 +621,14 @@ func TestSaveFillsDocumentHeaderFromConfig(t *testing.T) {
 	}
 }
 
-func TestAuthorFallsBackToUnknown(t *testing.T) {
+func TestGeneratorFallsBackToDv(t *testing.T) {
 	cfg := testConfig(t)
-	cfg.Author = model.Author{}
 	cfg.Generator = ""
 	s, err := New(cfg)
 	if err != nil {
 		t.Fatalf("New: %v", err)
 	}
-	c := mustAdd(t, s, anchorAt("a.go", 1, 1), "body")
-	if c.Author.Name != "unknown" {
-		t.Errorf("author = %#v, want unknown", c.Author)
-	}
+	mustAdd(t, s, anchorAt("a.go", 1, 1), "body")
 	doc, _, err := s.Load()
 	if err != nil {
 		t.Fatalf("Load: %v", err)

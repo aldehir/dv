@@ -40,7 +40,6 @@ func ExportMarkdown(doc *model.CommentsDoc, w io.Writer) error {
 		fmt.Fprintf(b, "\n## %s\n\n", anchorLabel(c.Anchor))
 		fmt.Fprintf(b, "- Side: %s\n", sideDetail(c.Anchor.Side))
 		writeField(b, "- Language: %s\n", c.Anchor.Lang)
-		fmt.Fprintf(b, "- Author: %s\n", authorLabel(c.Author))
 		writeField(b, "- Created: %s\n", c.CreatedAt)
 		if note := anchorNote(c.ResolvedAnchor); note != "" {
 			fmt.Fprintf(b, "- %s\n", note)
@@ -50,7 +49,7 @@ func ExportMarkdown(doc *model.CommentsDoc, w io.Writer) error {
 		if len(c.Replies) > 0 {
 			fmt.Fprint(b, "\n### Replies\n\n")
 			for _, r := range c.Replies {
-				fmt.Fprintf(b, "- **%s** (%s): %s\n", r.Author.Name, r.CreatedAt, oneLine(r.Body))
+				fmt.Fprintf(b, "- %s: %s\n", r.CreatedAt, oneLine(r.Body))
 			}
 		}
 	}
@@ -92,7 +91,7 @@ func ExportPrompt(doc *model.CommentsDoc, w io.Writer) error {
 		if len(c.Replies) > 0 {
 			fmt.Fprint(b, "\nReplies:\n")
 			for _, r := range c.Replies {
-				fmt.Fprintf(b, "- %s: %s\n", r.Author.Name, oneLine(r.Body))
+				fmt.Fprintf(b, "- %s\n", oneLine(r.Body))
 			}
 		}
 	}
@@ -193,13 +192,6 @@ func promptSide(a model.Anchor) string {
 		return sideLabel(a.Side)
 	}
 	return sideLabel(a.Side) + ", " + a.Lang
-}
-
-func authorLabel(a model.Author) string {
-	if a.Email == "" {
-		return a.Name
-	}
-	return fmt.Sprintf("%s <%s>", a.Name, a.Email)
 }
 
 func anchorNote(ra *model.ResolvedAnchor) string {

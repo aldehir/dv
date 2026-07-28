@@ -9,8 +9,6 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
-
-	"github.com/alde/dv/internal/model"
 )
 
 const DefaultMaxBlob = 2 << 20
@@ -120,26 +118,6 @@ func (r *Repo) cwdPath(path string) string {
 
 func (r *Repo) Head() (string, error) {
 	out, err := r.runOK([]int{1}, "rev-parse", "--verify", "--quiet", "HEAD^{commit}")
-	if err != nil {
-		return "", err
-	}
-	return strings.TrimRight(string(out), "\n"), nil
-}
-
-func (r *Repo) Author() (model.Author, error) {
-	name, err := r.configValue("user.name")
-	if err != nil {
-		return model.Author{}, err
-	}
-	email, err := r.configValue("user.email")
-	if err != nil {
-		return model.Author{}, err
-	}
-	return model.Author{Name: name, Email: email}, nil
-}
-
-func (r *Repo) configValue(key string) (string, error) {
-	out, err := r.runOK([]int{1}, "config", "--get", key)
 	if err != nil {
 		return "", err
 	}

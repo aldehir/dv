@@ -213,7 +213,6 @@ const resetComments = (stale: readonly string[] = []): void => {
   const doc = JSON.parse(readFileSync(COMMENTS_PATH, 'utf8'));
   doc.comments = stale.map((body, index) => ({
     id: `e2e-stale-${index}`,
-    author: { name: 'e2e' },
     createdAt: '2026-07-27T00:00:00Z',
     updatedAt: '2026-07-27T00:00:00Z',
     body,

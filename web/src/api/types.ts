@@ -97,11 +97,6 @@ export interface FilePayload {
 
 export type AnnotationSide = 'additions' | 'deletions';
 
-export interface Author {
-  name: string;
-  email?: string;
-}
-
 export interface RepoRef {
   root: string;
   head: string;
@@ -133,14 +128,12 @@ export interface ResolvedAnchor {
 
 export interface Reply {
   id: string;
-  author: Author;
   createdAt: string;
   body: string;
 }
 
 export interface Comment {
   id: string;
-  author: Author;
   createdAt: string;
   updatedAt: string;
   body: string;

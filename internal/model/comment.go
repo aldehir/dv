@@ -9,11 +9,6 @@ const (
 	SideDeletions AnnotationSide = "deletions"
 )
 
-type Author struct {
-	Name  string `json:"name"`
-	Email string `json:"email,omitempty"`
-}
-
 type RepoRef struct {
 	Root string `json:"root"`
 	Head string `json:"head"`
@@ -45,14 +40,12 @@ type ResolvedAnchor struct {
 
 type Reply struct {
 	ID        string `json:"id"`
-	Author    Author `json:"author"`
 	CreatedAt string `json:"createdAt"`
 	Body      string `json:"body"`
 }
 
 type Comment struct {
 	ID             string          `json:"id"`
-	Author         Author          `json:"author"`
 	CreatedAt      string          `json:"createdAt"`
 	UpdatedAt      string          `json:"updatedAt"`
 	Body           string          `json:"body"`

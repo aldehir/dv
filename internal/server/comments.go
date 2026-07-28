@@ -151,7 +151,7 @@ func (s *Server) handleCommentsCreate(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, r, err)
 		return
 	}
-	comment, etag, err := s.opts.Store.AddAs(anchor, req.Body, model.Author{}, r.Header.Get("If-Match"))
+	comment, etag, err := s.opts.Store.Add(anchor, req.Body, r.Header.Get("If-Match"))
 	if err != nil {
 		s.fail(w, r, err)
 		return
@@ -202,7 +202,7 @@ func (s *Server) handleCommentsReply(w http.ResponseWriter, r *http.Request) {
 	if !decodeJSON(w, r, &req) {
 		return
 	}
-	reply, etag, err := s.opts.Store.AddReply(r.PathValue("id"), req.Body, model.Author{}, r.Header.Get("If-Match"))
+	reply, etag, err := s.opts.Store.AddReply(r.PathValue("id"), req.Body, r.Header.Get("If-Match"))
 	if err != nil {
 		s.fail(w, r, err)
 		return

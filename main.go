@@ -151,10 +151,6 @@ func openStore(cfg config.Config, repo *gitx.Repo, spec *gitx.RevSpec, log *slog
 	if cfg.NoComments {
 		return nil, nil
 	}
-	author, err := repo.Author()
-	if err != nil {
-		return nil, err
-	}
 	head, err := repo.Head()
 	if err != nil {
 		return nil, err
@@ -164,7 +160,6 @@ func openStore(cfg config.Config, repo *gitx.Repo, spec *gitx.RevSpec, log *slog
 		Repo:      model.RepoRef{Root: repo.Root, Head: head},
 		Spec:      spec.Model(),
 		Generator: "dv/" + version,
-		Author:    author,
 		Logger:    log,
 		OnFirstWrite: func(path string) {
 			fmt.Fprintf(os.Stderr, "dv: created %s — commit it to share this review, or add it to .gitignore to keep it local\n", path)

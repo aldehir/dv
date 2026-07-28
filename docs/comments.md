@@ -20,7 +20,6 @@ writes one.
   "comments": [
     {
       "id": "cmt_…",
-      "author": { "name": "…", "email": "…" },
       "createdAt": "…", "updatedAt": "…",
       "body": "…",
       "anchor": {
