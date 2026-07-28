@@ -58,14 +58,16 @@ describe('createKeybinds', () => {
     press('n');
     press('p');
     press('g');
+    press('h');
     press('?');
-    expect(seen.map(([type]) => type)).toEqual([
-      'filter:focus',
-      'theme:cycle',
-      'comment:step',
-      'comment:step',
-      'panel:toggle',
-      'help:toggle',
+    expect(seen).toEqual([
+      ['filter:focus', undefined],
+      ['theme:cycle', undefined],
+      ['comment:step', { delta: 1 }],
+      ['comment:step', { delta: -1 }],
+      ['panel:toggle', 'comments'],
+      ['panel:toggle', 'hunks'],
+      ['help:toggle', undefined],
     ]);
     keybinds.destroy();
   });

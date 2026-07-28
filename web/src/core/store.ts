@@ -23,6 +23,9 @@ export interface LineSelection {
   range: LineRange;
 }
 
+/** Which of the two lists the right-hand panel is showing. */
+export type PanelView = 'comments' | 'hunks';
+
 export type FileLoadStatus = 'idle' | 'loading' | 'loaded' | 'error';
 
 export interface FileLoadState {
@@ -45,6 +48,7 @@ export interface AppState {
   filter: string;
   sidebarVisible: boolean;
   panelVisible: boolean;
+  panelView: PanelView;
   commentsEnabled: boolean;
   commentCounts: Record<string, number>;
   fileState: Record<string, FileLoadState>;
@@ -66,6 +70,8 @@ export const createInitialState = (): AppState => ({
   filter: '',
   sidebarVisible: true,
   panelVisible: false,
+  // Hunks, not comments: a repository opened without `--comments` still has them.
+  panelView: 'hunks',
   commentsEnabled: false,
   commentCounts: {},
   fileState: {},

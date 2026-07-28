@@ -68,3 +68,19 @@ test('still jumps to the hunk a tick stands for', async ({ page }) => {
 
   expect(await scrollTop(page)).not.toBe(before);
 });
+
+test('jumps to the hunk a panel row stands for', async ({ page }) => {
+  await page.locator('[aria-label="Toggle the hunk list"]').click();
+  const rows = page.locator('.dv-hunks__row');
+  await expect(rows.first()).toBeVisible();
+
+  // The first row is the top of the diff, where the view already is.
+  await expect(rows.first()).toHaveAttribute('aria-current', 'true');
+  const before = await scrollTop(page);
+
+  await rows.last().click();
+
+  await expect.poll(() => scrollTop(page)).not.toBe(before);
+  await expect(rows.last()).toHaveAttribute('aria-current', 'true');
+  await page.screenshot({ path: 'test-results/hunks-panel.png' });
+});

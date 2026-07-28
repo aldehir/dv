@@ -11,14 +11,26 @@ TypeScript is strict, including `noUncheckedIndexedAccess` and
 |---|---|
 | `core/` | the primitives: `dom`, `store`, `bus`, `component`, `router` |
 | `api/` | `client` (fetch + token), `sse`, `loader`, and the mirrored `types` |
-| `diff/` | the viewer, the hunk rail, item building, metrics, options, wheel |
+| `diff/` | the viewer, the hunk rail, the hunk list, item building, metrics, options, wheel |
 | `comments/` | the comments store, anchor maths, thread cards, the inbox |
-| `ui/` | shell, toolbar, file tree, controls, status bar, keybinds, help, icons |
+| `ui/` | shell, toolbar, dock, file tree, controls, status bar, keybinds, help, icons |
 | `theme/` | catppuccin flavors and the controller that applies them |
 | `styles/` | reset, fonts, and `app.css` |
 
 `main.ts` is the wiring and nothing else: build store/bus/client, compose the
 shell, start the loader and the comments store, mount into `#app`.
+
+## The chrome
+
+`ui/shell.ts` owns one grid: toolbar across the top, status across the bottom,
+and between them the file tree, the diff, the panel, and the dock — the thin
+strip of buttons down the far right edge.
+
+The panel holds both of its lists at once, the hunk list and the comment inbox,
+and `panelView` picks which one is on show; the other is hidden in CSS rather
+than torn down, so neither loses its place. Every way in goes through one bus
+event, `panel:toggle`, carrying the list it wants: pressing the button of the
+list already showing closes the panel instead.
 
 ## The component contract
 
@@ -89,6 +101,9 @@ Things to know before changing it:
   are passed as options and `SCROLLBAR_CSS` is injected deliberately.
 - `diff/rail.ts` draws every hunk down the right edge and *is* the scrollbar —
   drag, track press, wheel, and tick jumps all go through it.
+- `diff/hunks.ts` is the same hunks read out as a list, grouped by file, with
+  the one the top of the view sits in marked. Both it and the rail work off
+  `viewer.hunks()`, so a file that has not streamed in yet is in neither.
 - `diff/wheel.ts` exists for WebKit, which latches a wheel gesture to an element
   that cannot scroll on that axis and drops the delta. Do not "simplify" it away.
 
@@ -137,6 +152,7 @@ add a binding there and the help updates itself.
 | `c` | write in the comment box for the selection |
 | `n` / `p` | next / previous comment |
 | `g` | toggle the comment inbox |
+| `h` | toggle the hunk list |
 | `b` | toggle the file tree |
 | `?` | help |
 | `Esc` | dismiss overlays |

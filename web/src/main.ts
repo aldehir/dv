@@ -11,10 +11,12 @@ import { createBus } from './core/bus';
 import { createLazyOverlay } from './core/component';
 import { createRouter } from './core/router';
 import { createInitialState, createStore } from './core/store';
+import { createHunkList } from './diff/hunks';
 import { createRail } from './diff/rail';
 import { createViewer } from './diff/viewer';
 import { createThemeController } from './theme/controller';
 import { createControls } from './ui/controls';
+import { createDock } from './ui/dock';
 import { createFileTree } from './ui/file-tree';
 import { createKeybinds } from './ui/keybinds';
 import { createShell } from './ui/shell';
@@ -33,6 +35,7 @@ const shell = createShell({
   toolbar: createToolbar(deps).el,
   sidebar: createFileTree(deps).el,
   controls: createControls(deps).el,
+  dock: createDock(deps).el,
   status: createStatusBar({ store }).el,
 });
 
@@ -47,7 +50,10 @@ createThemeController(deps).start();
 createKeybinds(deps);
 createRouter(deps);
 shell.main.appendChild(createRail({ ...deps, comments, viewer, scroller: root }).el);
-shell.panel.replaceChildren(createInbox({ ...deps, comments, viewer }).el);
+shell.panel.replaceChildren(
+  createHunkList({ ...deps, comments, viewer }).el,
+  createInbox({ ...deps, comments, viewer }).el,
+);
 
 bus.on('help:toggle', help.toggle);
 bus.on('overlay:dismiss', () => { help.close(); store.set({ selection: null, composing: null }); });

@@ -1,6 +1,6 @@
 import type { Comment, FilePayload, Flavor, Manifest, ThemePref } from '../api/types';
 import type { Unsubscribe } from './component';
-import type { LineSelection } from './store';
+import type { LineSelection, PanelView } from './store';
 
 export interface FileSelected {
   id: string;
@@ -33,7 +33,8 @@ export interface BusEvents {
   'comment:deleted': { id: string };
   'comment:step': StepIntent;
   'comment:focus': { id: string };
-  'panel:toggle': void;
+  /** Show this list in the panel, or close the panel when it already is. */
+  'panel:toggle': PanelView;
   'sidebar:toggle': void;
   'help:toggle': void;
   'overlay:dismiss': void;

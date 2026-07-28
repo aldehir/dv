@@ -75,12 +75,12 @@ samp,
 
 .dv-shell {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
   grid-template-rows: auto minmax(0, 1fr) auto;
   grid-template-areas:
-    'toolbar toolbar toolbar'
-    'sidebar main panel'
-    'status status status';
+    'toolbar toolbar toolbar toolbar'
+    'sidebar main    panel   dock'
+    'status  status  status  status';
   height: 100%;
 }
 
@@ -157,6 +157,12 @@ samp,
   overflow: auto;
 }
 
+.dv-shell__dock {
+  grid-area: dock;
+  border-left: 1px solid var(--dv-border);
+  background: var(--dv-bg-raised);
+}
+
 .dv-shell__status {
   grid-area: status;
   border-top: 1px solid var(--dv-border);
@@ -166,6 +172,21 @@ samp,
 .dv-shell[data-sidebar='hidden'] .dv-shell__sidebar,
 .dv-shell[data-panel='hidden'] .dv-shell__panel {
   display: none;
+}
+
+/* Both lists live in the panel and the dock picks between them, so the one that
+   is not showing steps out of the way rather than being torn down and rebuilt. */
+.dv-shell[data-panel-view='hunks'] .dv-inbox,
+.dv-shell[data-panel-view='comments'] .dv-hunks {
+  display: none;
+}
+
+.dv-dock {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  align-items: center;
+  padding: 0.35rem 0.3rem;
 }
 
 /* Change minimap and scrollbar in one: a tick per hunk in the whole diff,
@@ -943,5 +964,100 @@ samp,
   display: flex;
   gap: 0.35rem;
   color: var(--dv-fg-faint);
+}
+
+.dv-hunks {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  height: 100%;
+}
+
+.dv-hunks__meta {
+  padding: 0.5rem 0.6rem 0.35rem;
+  color: var(--dv-fg-faint);
+}
+
+.dv-hunks__list,
+.dv-hunks__sublist {
+  min-height: 0;
+  list-style: none;
+}
+
+.dv-hunks__list {
+  overflow-y: auto;
+}
+
+/* The file a hunk belongs to is read once, at the head of its run, and stays
+   put while its own hunks scroll under it. */
+.dv-hunks__file {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  gap: 0.35rem;
+  align-items: center;
+  width: 100%;
+  padding: 0.3rem 0.6rem;
+  color: var(--dv-fg-muted);
+  background: var(--dv-bg-raised);
+  border-bottom: 1px solid var(--dv-border);
+  text-align: left;
+}
+
+.dv-hunks__file:hover {
+  color: var(--dv-fg);
+  background: var(--dv-bg-hover);
+}
+
+.dv-hunks__path {
+  min-width: 0;
+  overflow: hidden;
+  font-weight: 600;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.dv-hunks__tally {
+  margin-left: auto;
+  color: var(--dv-fg-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+.dv-hunks__row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: baseline;
+  justify-content: space-between;
+  width: 100%;
+  padding: 0.25rem 0.6rem 0.25rem 1.5rem;
+  text-align: left;
+}
+
+.dv-hunks__row:hover {
+  background: var(--dv-bg-hover);
+}
+
+/* The hunk the top of the diff is inside, so the list reads as a position and
+   not only as an index. */
+.dv-hunks__row[aria-current='true'] {
+  background: var(--dv-bg-active);
+  box-shadow: inset 2px 0 0 var(--dv-accent);
+}
+
+.dv-hunks__context {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--dv-fg-muted);
+  font-family: var(--dv-code-font);
+  font-size: 0.92em;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.dv-hunks__delta {
+  display: flex;
+  flex: none;
+  gap: 0.35rem;
+  font-variant-numeric: tabular-nums;
 }
 

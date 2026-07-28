@@ -2,13 +2,14 @@ import type { Bus } from '../core/bus';
 import type { Component } from '../core/component';
 import { createDisposer } from '../core/component';
 import { el, replaceChildren } from '../core/dom';
-import type { AppState, AppStore } from '../core/store';
+import type { AppState, AppStore, PanelView } from '../core/store';
 
 export const DIFF_MOUNT_ID = 'dv-diff';
 
 export interface ShellProps {
   sidebarVisible: boolean;
   panelVisible: boolean;
+  panelView: PanelView;
   placeholder: string | null;
 }
 
@@ -16,6 +17,7 @@ export interface ShellSlots {
   toolbar: HTMLElement;
   sidebar: HTMLElement;
   controls: HTMLElement;
+  dock: HTMLElement;
   status: HTMLElement;
 }
 
@@ -41,6 +43,7 @@ const placeholderFor = (state: AppState): string | null => {
 export const shellProps = (state: AppState): ShellProps => ({
   sidebarVisible: state.sidebarVisible,
   panelVisible: state.panelVisible,
+  panelView: state.panelView,
   placeholder: placeholderFor(state),
 });
 
@@ -48,6 +51,7 @@ export const createShell = ({
   toolbar,
   sidebar,
   controls,
+  dock,
   status,
   store,
   bus,
@@ -72,6 +76,7 @@ export const createShell = ({
     ),
     main,
     panel,
+    el('aside', { class: 'dv-shell__dock' }, dock),
     el('footer', { class: 'dv-shell__status' }, status),
     overlays,
   );
@@ -79,14 +84,19 @@ export const createShell = ({
   const update = (props: ShellProps): void => {
     root.dataset.sidebar = props.sidebarVisible ? 'visible' : 'hidden';
     root.dataset.panel = props.panelVisible ? 'visible' : 'hidden';
+    root.dataset.panelView = props.panelView;
     placeholder.hidden = props.placeholder === null;
     replaceChildren(placeholder, props.placeholder ?? '');
   };
 
   disposer.add(store.subscribe((state) => update(shellProps(state))));
+  // A dock button both picks the list and closes the panel: pressing the one
+  // already showing is the way back out.
   disposer.add(
-    bus.on('panel:toggle', () => {
-      store.set({ panelVisible: !store.get().panelVisible });
+    bus.on('panel:toggle', (view) => {
+      const { panelVisible, panelView } = store.get();
+      if (panelVisible && panelView === view) store.set({ panelVisible: false });
+      else store.set({ panelVisible: true, panelView: view });
     }),
   );
   disposer.add(
