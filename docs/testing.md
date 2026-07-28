@@ -56,16 +56,30 @@ real diff, rather than against jsdom's approximation of one.
 
 ### What they do
 
-`web/playwright.config.ts` starts the **real binary** as its web server:
+`web/playwright.config.ts` builds a throwaway repository and starts the **real
+binary** against it as its web server:
 
 ```
-./bin/dv --no-open --host 127.0.0.1 --port 8799 --idle-timeout 0 \
-         --comments /tmp/dv-e2e-comments.json HEAD~1
+web/e2e/fixture.sh /tmp/dv-e2e-repo
+cd /tmp/dv-e2e-repo && bin/dv --no-open --host 127.0.0.1 --port 8799 \
+    --idle-timeout 0 --comments /tmp/dv-e2e-comments.json HEAD~1
 ```
 
-So the suite reviews **this repository's own last commit**. Chromium then drives
-that page. `DV_TOKEN=e2e-token` pins the token, and `e2e/global-setup.ts` wipes
-the comments file (and its `.bak`) before the run so comment tests start clean.
+So the suite reviews a **fixed diff that no commit to dv can move**. It used to
+review dv's own last commit, which made every assertion a hostage of whatever
+had just been merged: a commit that only deleted lines left no additions to find,
+and a gutter row addressed by index shifted underneath the next drag.
+
+`e2e/fixture.sh` rebuilds the repo from scratch on every run — two commits whose
+diff carries additions and deletions in one file, three hunks with unchanged
+context between them, a file per grammar the tests ask shiki for, a
+pure-addition and a pure-deletion file, a rename, and a `vendor.lock` with no
+grammar at all. Change what the fixture contains and you change what every test
+sees, so read its header before editing it.
+
+Chromium then drives that page. `DV_TOKEN=e2e-token` pins the token, and
+`e2e/global-setup.ts` wipes the comments file (and its `.bak`) before the run so
+comment tests start clean.
 
 ### One-time setup
 
@@ -105,15 +119,20 @@ for the drag, and it is the quickest way to eyeball a visual change:
 await page.screenshot({ path: 'test-results/my-change.png', fullPage: false });
 ```
 
-For an interactive poke rather than a test, `make build && ./bin/dv HEAD~1`
-opens the same thing in your own browser.
+For an interactive poke rather than a test, open the fixture in your own browser:
+
+```bash
+make build
+web/e2e/fixture.sh /tmp/dv-e2e-repo
+dv=$PWD/bin/dv && cd /tmp/dv-e2e-repo && "$dv" HEAD~1
+```
 
 ### Current suites
 
 - `e2e/smoke.spec.ts` — the diff renders and tokenizes, catppuccin reaches the
-  code surface, split/unified toggling, expanding unchanged context, no console
-  errors while scrolling, a comment surviving a reload and landing in
-  `comments.json`, and the draft box tracking a selection drag.
+  code surface, split/unified toggling, unchanged context arriving outside the
+  hunks, no console errors while scrolling, a comment surviving a reload and
+  landing in `comments.json`, and the draft box tracking a selection drag.
 - `e2e/rail.spec.ts` — the hunk rail as a scrollbar: drag, track press, wheel
   forwarding, tick jumps.
 
@@ -126,27 +145,20 @@ opens the same thing in your own browser.
   see the `countTokenSpans` helper in `smoke.spec.ts`.
 - **Only what is on screen is rendered.** The viewer virtualises. Click a file
   row and press `]` to step to a hunk before asserting on lines.
-- **Do not assume which files the diff contains.** It is whatever the last commit
-  touched. `smoke.spec.ts` filters for a `.ts|.go|.css|.md` file precisely
-  because the first entry may be a lock file shiki has no grammar for.
+- **Name the file you want.** The diff comes from `e2e/fixture.sh`, so
+  `src/viewer.ts` is always the one with three hunks and `vendor.lock` is always
+  the one shiki has no grammar for. If you need a shape the fixture lacks, add it
+  there rather than writing the test around whatever happens to be present.
+- **No escape hatches.** A test that returns early when it cannot find what it
+  came for is a test that passes when the feature is gone. The diff is fixed now;
+  assert.
 - The suite is `workers: 1, fullyParallel: false` on purpose — one server
   process, one comments file. Keep it that way.
 - Prefer `expect.poll` over `waitForTimeout` for anything the app resolves
   asynchronously.
-
-### Known flaky, as of `4dc6e0a`
-
-Two tests do not pass reliably on a local run, both timing-sensitive rather than
-broken-by-your-change:
-
-- `rail.spec.ts` › *sends the box to a press on the track* — fails every time in
-  isolation, passes some full runs. `beforeEach` only waits for the first
-  `diffs-container` and the rail to be visible, so the track press can land
-  before enough of the diff has streamed in for the mount to be scrollable.
-- `smoke.spec.ts` › *the draft box follows the selection without chasing the
-  drag* — fails at different assertions from run to run.
-
-Confirm against a clean tree before assuming you caused a failure here.
+- **Wait for the state you need, not a proxy for it.** `rail.spec.ts` waits until
+  the mount actually overflows, because a rail can be visible before the diff has
+  streamed in far enough to scroll.
 
 ### When it fails
 

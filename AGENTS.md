@@ -37,8 +37,9 @@ has to be built first.
 
 Unit tests do not exercise layout, scrolling, virtualisation, or the shadow DOM
 the diff renders into. For anything visual or interactive, run the **browser
-tests**: they start the real binary against this repo's own `HEAD~1` and drive
-chromium against it.
+tests**: they build a throwaway repository with `web/e2e/fixture.sh`, start the
+real binary against it, and drive chromium at the result. The diff under them is
+fixed, so a test may name the file it wants.
 
 ```bash
 bunx playwright install --with-deps chromium   # one time, from web/
@@ -47,8 +48,7 @@ cd web && bun run test:e2e
 ```
 
 Single test, headed, screenshots, and the rules for writing new ones are in
-[docs/testing.md](docs/testing.md#browser-tests). To poke at it by hand instead:
-`make build && ./bin/dv HEAD~1`.
+[docs/testing.md](docs/testing.md#browser-tests).
 
 ## Conventions
 

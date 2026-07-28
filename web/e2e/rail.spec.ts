@@ -8,10 +8,20 @@ const scrollTop = (page: Page) =>
 
 const boxTop = async (page: Page) => (await box(page).boundingBox())?.y ?? 0;
 
+const overflow = (page: Page) =>
+  page.evaluate(() => {
+    const mount = document.querySelector('.dv-shell__mount');
+    return mount ? mount.scrollHeight - mount.clientHeight : 0;
+  });
+
 test.beforeEach(async ({ page }) => {
   await page.goto('/');
   await expect(page.locator('diffs-container').first()).toBeVisible();
   await expect(rail(page)).toBeVisible();
+  // A visible rail is not yet a working one: until enough of the diff has
+  // streamed in for the mount to overflow, a press on the track has nowhere to
+  // send the box.
+  await expect.poll(() => overflow(page)).toBeGreaterThan(0);
 });
 
 test('drags the diff by the box', async ({ page }) => {
@@ -28,6 +38,17 @@ test('drags the diff by the box', async ({ page }) => {
   expect(await scrollTop(page)).toBeGreaterThan(before);
   expect(await boxTop(page)).toBeGreaterThan(start.y);
   await page.screenshot({ path: 'test-results/rail-dragged.png' });
+});
+
+test('sends the box to a press on the track', async ({ page }) => {
+  const track = await rail(page).boundingBox();
+  if (!track) throw new Error('expected a rail');
+  const before = await boxTop(page);
+
+  await page.mouse.click(track.x + track.width / 2, track.y + track.height * 0.8);
+
+  expect(await scrollTop(page)).toBeGreaterThan(0);
+  expect(await boxTop(page)).toBeGreaterThan(before);
 });
 
 test('rolls the wheel over the rail into the diff', async ({ page }) => {

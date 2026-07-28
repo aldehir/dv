@@ -79,8 +79,8 @@ Environment:
 3. **e2e** — downloads that `dist`, builds the binary, installs chromium, runs Playwright
 4. **build** — cross-compiles the five release targets
 
-Note the e2e job checks out with `fetch-depth: 2`, because the suite diffs the
-repo's own `HEAD~1`.
+The e2e job needs no git history: `web/e2e/fixture.sh` builds the repository the
+suite reviews.
 
 `.github/workflows/release.yml` fires on `v*` tags: builds the web assets, cross
 compiles linux/darwin amd64+arm64 and windows amd64, writes `SHA256SUMS`, and

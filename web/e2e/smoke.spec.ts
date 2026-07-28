@@ -39,10 +39,21 @@ const openFirstFile = async (page: Page) => {
   return (await firstFileRow(page).locator('.dv-tree__name').textContent()) ?? '';
 };
 
+/** Naming a file is safe: the diff comes from `e2e/fixture.sh`, not from HEAD. */
+const openFile = async (page: Page, name: string) => {
+  await waitForDiff(page);
+  const row = page
+    .locator('.dv-tree__row')
+    .filter({ has: page.locator('.dv-tree__name', { hasText: name }) })
+    .first();
+  await expect(row).toBeVisible();
+  await row.click();
+};
+
 /**
- * Scrolls a file shiki can actually tokenize into view. The diff leads with
- * whatever git lists first, which is often a lock file with no grammar, and the
- * viewer only renders what is on screen.
+ * Scrolls a file shiki can actually tokenize into view, skipping the fixture's
+ * `vendor.lock` and anything else it has no grammar for, since the viewer only
+ * renders what is on screen.
  */
 const openHighlightableFile = async (page: Page) => {
   await waitForDiff(page);
@@ -125,33 +136,27 @@ test('toggles split and unified without remounting', async ({ page }) => {
   await expect(page.locator('diffs-container').first()).toBeVisible();
 });
 
-test('expands unchanged context from a patch-sourced diff', async ({ page }) => {
-  await openFirstFile(page);
+test('carries unchanged context past the hunks of a patch-sourced diff', async ({ page }) => {
+  await openFile(page, 'viewer.ts');
 
-  const expander = page
-    .locator('diffs-container button, diffs-container [role="button"]')
-    .filter({ hasText: /expand|\+|▲|▼|\.\.\./ })
-    .first();
+  // dv ships whole blobs beside the patch — that is what `--max-blob` turns off
+  // — so the viewer holds lines no hunk mentions. The library files those rows
+  // under `context-expanded`, and there is no expander to press: they are
+  // already there.
+  const expanded = page.locator('diffs-container [data-line-type="context-expanded"]');
+  await expect.poll(() => expanded.count(), { timeout: 10_000 }).toBeGreaterThan(0);
 
-  const linesBefore = await page.locator('diffs-container [data-line]').count();
-
-  if ((await expander.count()) === 0) {
-    test.info().annotations.push({ type: 'note', description: 'no expander in this diff' });
-    return;
-  }
-
-  await expander.click();
-  await expect
-    .poll(async () => page.locator('diffs-container [data-line]').count(), {
-      timeout: 10_000,
-    })
-    .toBeGreaterThan(linesBefore);
+  // The fixture's first hunk opens at line 13, so line 1 rendering at all is the
+  // full contents arriving rather than the patch.
+  await expect(expanded.and(page.locator('[data-line="1"]')).first()).toBeAttached();
 });
 
 test('reports validated item heights with no console errors', async ({ page }) => {
   const errors: string[] = [];
+  // A failed request reads the same whatever it was for — the URL only shows up
+  // in the location — so carry it, or the filter below matches nothing.
   page.on('console', (message) => {
-    if (message.type() === 'error') errors.push(message.text());
+    if (message.type() === 'error') errors.push(`${message.text()} ${message.location().url}`);
   });
   page.on('pageerror', (error) => errors.push(error.message));
 
@@ -173,37 +178,9 @@ test('comment survives a reload and lands in comments.json', async ({ page }) =>
   await page.locator('diffs-container [data-line-number-content]').first().click();
 
   const draft = page.locator(`.${DRAFT_INPUT}`);
-  if ((await draft.count()) === 0) {
-    test.info().annotations.push({
-      type: 'note',
-      description: 'draft box needs a line selection; exercising the API path instead',
-    });
-
-    const created = await page.evaluate(async (text) => {
-      const token =
-        document.querySelector<HTMLMetaElement>('meta[name="dv-token"]')?.content ?? '';
-      const manifest = await fetch('/api/manifest', {
-        headers: { 'X-Dv-Token': token },
-      }).then((r) => r.json());
-      const file = manifest.files[0];
-      const response = await fetch('/api/comments', {
-        method: 'POST',
-        headers: { 'X-Dv-Token': token, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          anchor: { path: file.path, side: 'additions', startLine: 1, endLine: 1 },
-          body: text,
-        }),
-      });
-      return response.ok;
-    }, body);
-
-    expect(created).toBe(true);
-  } else {
-    await draft.fill(body);
-    await page
-      .locator('.dv-thread__card--draft [aria-label="Save this comment"]')
-      .click();
-  }
+  await expect(draft).toBeVisible();
+  await draft.fill(body);
+  await page.locator('.dv-thread__card--draft [aria-label="Save this comment"]').click();
 
   await expect
     .poll(() => {
@@ -225,4 +202,48 @@ test('comment survives a reload and lands in comments.json', async ({ page }) =>
   expect(stored.anchor.quote.length).toBeGreaterThan(0);
 
   await expect(page.locator('.dv-shell__panel')).toBeAttached();
+});
+
+test('the draft box follows the selection without chasing the drag', async ({ page }) => {
+  await openHighlightableFile(page);
+
+  const gutter = page.locator('diffs-container [data-line-number-content]');
+  const card = page.locator('.dv-thread__card--draft');
+  const draft = page.locator(`.${DRAFT_INPUT}`);
+  const selection = () => page.locator('.dv-status__selection').textContent();
+
+  await gutter.nth(2).click();
+  await expect(draft).toBeVisible();
+  const parked = (await card.boundingBox())?.y ?? 0;
+
+  // Dragging the end of the selection must not re-lay out the diff mid-drag:
+  // the box moving would shuffle the lines out from under the pointer.
+  await gutter.nth(2).hover();
+  await page.mouse.down();
+  const target = await gutter.nth(8).boundingBox();
+  if (!target) throw new Error('nothing to drag to');
+  await page.mouse.move(target.x + target.width / 2, target.y + target.height / 2, { steps: 8 });
+  expect(await selection()).toContain('-');
+  expect((await card.boundingBox())?.y).toBe(parked);
+
+  await page.mouse.up();
+  await expect.poll(async () => (await card.boundingBox())?.y).not.toBe(parked);
+
+  // Esc drops the selection and the box with it, but keeps what was written.
+  await draft.fill('kept while the box is away');
+  await page.keyboard.press('Escape');
+  await expect(card).toHaveCount(0);
+  expect(await selection()).toBe('no selection');
+
+  await gutter.nth(2).click();
+  await gutter.nth(8).click({ modifiers: ['Shift'] });
+  await expect(draft).toHaveValue('kept while the box is away');
+
+  // A settled range opens the box already focused; `c` is how you get back into
+  // it once focus has moved on.
+  await expect(draft).toBeFocused();
+  await draft.blur();
+  await expect(draft).not.toBeFocused();
+  await page.keyboard.press('c');
+  await expect(draft).toBeFocused();
 });

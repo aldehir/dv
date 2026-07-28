@@ -1,10 +1,23 @@
 import { existsSync, readdirSync } from 'node:fs';
+import { dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { defineConfig, devices } from '@playwright/test';
+
+const HERE = dirname(fileURLToPath(import.meta.url));
 
 const PORT = 8799;
 const BROWSERS = `${process.env.HOME}/.cache/ms-playwright`;
 
 export const COMMENTS_PATH = '/tmp/dv-e2e-comments.json';
+
+/**
+ * The suite reviews a generated repository rather than dv's own last commit, so
+ * the diff under the tests is the same on every run. `e2e/fixture.sh` builds it;
+ * see the header there for what the diff is shaped to cover.
+ */
+const FIXTURE_REPO = '/tmp/dv-e2e-repo';
+
+const BINARY = `${HERE}/../bin/dv`;
 
 /**
  * Reuse whichever chromium the local playwright cache already holds instead of
@@ -38,8 +51,12 @@ export default defineConfig({
     launchOptions,
   },
   webServer: {
-    command: `./bin/dv --no-open --host 127.0.0.1 --port ${PORT} --idle-timeout 0 --comments ${COMMENTS_PATH} HEAD~1`,
-    cwd: '..',
+    // The fixture is rebuilt here rather than in globalSetup because dv is
+    // spawned with the repo as its cwd, and Playwright needs that directory to
+    // exist before it spawns anything.
+    command:
+      `bash ${HERE}/e2e/fixture.sh ${FIXTURE_REPO} && cd ${FIXTURE_REPO} && ` +
+      `exec ${BINARY} --no-open --host 127.0.0.1 --port ${PORT} --idle-timeout 0 --comments ${COMMENTS_PATH} HEAD~1`,
     url: `http://127.0.0.1:${PORT}/healthz`,
     reuseExistingServer: false,
     timeout: 30_000,
