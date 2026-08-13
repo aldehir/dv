@@ -11,8 +11,13 @@ import { expect, type Page } from '@playwright/test';
  * and neither is.
  */
 export const waitForDiff = async (page: Page): Promise<void> => {
-  await expect(page.locator('diffs-container').first()).toBeVisible();
   await expect(page.locator('.dv-tree__row').first()).toBeVisible();
+  await waitForStreamedDiff(page);
+};
+
+/** The same wait without the file tree, which a narrow window keeps collapsed. */
+export const waitForStreamedDiff = async (page: Page): Promise<void> => {
+  await expect(page.locator('diffs-container').first()).toBeVisible();
   // The status dot carries the stream state; `done` is the last payload landing.
   await expect(page.locator('.dv-status__dot')).toHaveAttribute('data-state', /done|closed/);
   await expect.poll(() => overflow(page)).toBeGreaterThan(0);

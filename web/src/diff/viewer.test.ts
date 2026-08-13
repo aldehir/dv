@@ -414,6 +414,32 @@ describe('createViewer', () => {
     harness.viewer.destroy();
   });
 
+  it('carries the walk on into the next file at the end of one', () => {
+    const harness = bench();
+    harness.bus.emit('manifest:ready', manifest());
+    harness.bus.emit('file:payload', payload('f1', 'src/f1.ts'));
+    harness.bus.emit('file:payload', payload('f2', 'src/f2.ts'));
+    harness.store.set({ selectedFile: 'f1' });
+    const scrollTo = vi.spyOn(harness.view(), 'scrollTo');
+
+    // One hunk to a file here, so the second press is already past the end of f1.
+    harness.bus.emit('hunk:step', { delta: 1 });
+    harness.bus.emit('hunk:step', { delta: 1 });
+
+    expect(harness.store.get().selectedFile).toBe('f2');
+    expect(scrollTo).toHaveBeenLastCalledWith({
+      type: 'line',
+      id: 'f2',
+      lineNumber: 1,
+      side: 'additions',
+      align: 'start',
+    });
+
+    harness.bus.emit('hunk:step', { delta: -1 });
+    expect(harness.store.get().selectedFile).toBe('f1');
+    harness.viewer.destroy();
+  });
+
   /** jsdom lays nothing out, so the measurements the rail reads are staged. */
   const measured = (harness: Bench, tops: Record<string, number>, total = 1000): void => {
     vi.spyOn(harness.view(), 'getScrollHeight').mockReturnValue(total);

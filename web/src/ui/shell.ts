@@ -10,6 +10,7 @@ export interface ShellProps {
   sidebarVisible: boolean;
   panelVisible: boolean;
   panelView: PanelView;
+  compact: boolean;
   placeholder: string | null;
 }
 
@@ -44,6 +45,7 @@ export const shellProps = (state: AppState): ShellProps => ({
   sidebarVisible: state.sidebarVisible,
   panelVisible: state.panelVisible,
   panelView: state.panelView,
+  compact: state.compact,
   placeholder: placeholderFor(state),
 });
 
@@ -85,6 +87,7 @@ export const createShell = ({
     root.dataset.sidebar = props.sidebarVisible ? 'visible' : 'hidden';
     root.dataset.panel = props.panelVisible ? 'visible' : 'hidden';
     root.dataset.panelView = props.panelView;
+    root.dataset.compact = String(props.compact);
     placeholder.hidden = props.placeholder === null;
     replaceChildren(placeholder, props.placeholder ?? '');
   };

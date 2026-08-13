@@ -49,6 +49,8 @@ export interface AppState {
   sidebarVisible: boolean;
   panelVisible: boolean;
   panelView: PanelView;
+  /** The window is too narrow to hold anything beside the diff. */
+  compact: boolean;
   commentsEnabled: boolean;
   commentCounts: Record<string, number>;
   fileState: Record<string, FileLoadState>;
@@ -72,6 +74,7 @@ export const createInitialState = (): AppState => ({
   panelVisible: false,
   // Hunks, not comments: a repository opened without `--comments` still has them.
   panelView: 'hunks',
+  compact: false,
   commentsEnabled: false,
   commentCounts: {},
   fileState: {},

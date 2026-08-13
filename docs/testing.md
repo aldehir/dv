@@ -135,6 +135,9 @@ dv=$PWD/bin/dv && cd /tmp/dv-e2e-repo && "$dv" HEAD~1
   landing in `comments.json`, and the draft box tracking a selection drag.
 - `e2e/rail.spec.ts` — the hunk rail as a scrollbar: drag, track press, wheel
   forwarding, tick jumps.
+- `e2e/mobile.spec.ts` — the narrow layout, at a 390×780 viewport: unified with
+  the tree collapsed, the tree sliding over the diff rather than squeezing it,
+  and the floating hunk arrows walking on past the end of a file.
 
 ### Writing one
 

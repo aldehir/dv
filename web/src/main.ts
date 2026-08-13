@@ -11,10 +11,12 @@ import { createBus } from './core/bus';
 import { createLazyOverlay } from './core/component';
 import { createRouter } from './core/router';
 import { createInitialState, createStore } from './core/store';
+import { createHunkNav } from './diff/hunk-nav';
 import { createHunkList } from './diff/hunks';
 import { createRail } from './diff/rail';
 import { createViewer } from './diff/viewer';
 import { createThemeController } from './theme/controller';
+import { createCompactLayout } from './ui/compact';
 import { createControls } from './ui/controls';
 import { createDock } from './ui/dock';
 import { createFileTree } from './ui/file-tree';
@@ -29,6 +31,10 @@ const client = createClient({ token: readTokenFromDocument() });
 const deps = { store, bus };
 const loader = createLoader({ ...deps, client });
 const comments = createCommentsStore({ ...deps, client });
+
+// Ahead of the shell and the viewer, so a narrow window draws unified with the
+// tree away rather than laying out twice.
+createCompactLayout({ store });
 
 const shell = createShell({
   ...deps,
@@ -50,6 +56,7 @@ createThemeController(deps).start();
 createKeybinds(deps);
 createRouter(deps);
 shell.main.appendChild(createRail({ ...deps, comments, viewer, scroller: root }).el);
+shell.main.appendChild(createHunkNav({ bus, viewer }).el);
 shell.panel.replaceChildren(
   createHunkList({ ...deps, comments, viewer }).el,
   createInbox({ ...deps, comments, viewer }).el,

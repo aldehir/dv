@@ -181,6 +181,36 @@ samp,
   display: none;
 }
 
+/* A narrow window has room for the diff and nothing else, so the tree and the
+   panel give up their columns and slide over it instead. Standing them in the
+   diff's own grid area keeps them clear of the toolbar and the status bar
+   without a single offset to keep in sync. */
+.dv-shell[data-compact='true'] .dv-shell__sidebar,
+.dv-shell[data-compact='true'] .dv-shell__panel {
+  z-index: 4;
+  grid-area: main;
+  width: min(var(--dv-sidebar-width), 85vw);
+  box-shadow: 0 0 2rem color-mix(in srgb, var(--dv-crust) 55%, transparent);
+}
+
+.dv-shell[data-compact='true'] .dv-shell__panel {
+  justify-self: end;
+  width: min(var(--dv-panel-width), 85vw);
+}
+
+/* Thumbs, not a pointer. */
+.dv-shell[data-compact='true'] .dv-icon-btn {
+  width: 2.2rem;
+  height: 2.2rem;
+}
+
+/* Nothing survives a phone-width status bar; the file and the stream dot are
+   the two worth keeping. */
+.dv-shell[data-compact='true'] .dv-status__selection,
+.dv-shell[data-compact='true'] .dv-status__stream-label {
+  display: none;
+}
+
 .dv-dock {
   display: flex;
   flex-direction: column;
@@ -273,6 +303,46 @@ samp,
   cursor: grab;
 }
 
+/* Previous and next hunk, over the bottom right corner of the diff and clear of
+   the rail. Only a narrow window gets them: a pointer has the rail, and a
+   keyboard has `[` and `]`. */
+.dv-hunk-nav {
+  position: absolute;
+  right: calc(var(--dv-rail-width) + 0.55rem);
+  bottom: 0.7rem;
+  z-index: 3;
+  display: none;
+  gap: 0.15rem;
+  padding: 0.15rem;
+  background: var(--dv-bg-raised);
+  border: 1px solid var(--dv-border-strong);
+  border-radius: 999px;
+  box-shadow: 0 0.25rem 1rem color-mix(in srgb, var(--dv-crust) 55%, transparent);
+}
+
+.dv-shell[data-compact='true'] .dv-hunk-nav {
+  display: flex;
+}
+
+.dv-hunk-nav__btn {
+  display: grid;
+  place-items: center;
+  width: 2.3rem;
+  height: 2.3rem;
+  color: var(--dv-fg-muted);
+  font-size: 1.15em;
+  border-radius: 999px;
+}
+
+.dv-hunk-nav__btn:hover {
+  color: var(--dv-fg);
+  background: var(--dv-bg-hover);
+}
+
+.dv-hunk-nav__btn:active {
+  background: var(--dv-bg-active);
+}
+
 .dv-toolbar {
   display: flex;
   gap: var(--dv-gap);
@@ -288,9 +358,15 @@ samp,
   min-width: 0;
 }
 
+/* Shrinks and truncates rather than wrapping: a two-line toolbar moves the
+   whole diff down. */
 .dv-toolbar__repo {
+  min-width: 0;
+  overflow: hidden;
   color: var(--dv-fg);
   font-weight: 600;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .dv-toolbar__rev-chip {

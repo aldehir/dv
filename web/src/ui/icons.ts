@@ -1,5 +1,6 @@
 import {
   Check,
+  ChevronLeft,
   ChevronRight,
   Columns2,
   createElement,
@@ -27,6 +28,8 @@ export type { IconNode };
 
 export const ICONS = {
   chevron: ChevronRight,
+  prev: ChevronLeft,
+  next: ChevronRight,
   folder: Folder,
   folderOpen: FolderOpen,
   file: File,

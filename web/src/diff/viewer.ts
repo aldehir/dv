@@ -26,6 +26,9 @@ import { forwardWheel } from './wheel';
 
 const WORKER_POOL_SIZE = 4;
 
+/** An item that carries a real patch, as opposed to a placeholder. */
+type DiffFileItem = Extract<DiffItem, { type: 'diff' }>;
+
 export interface ItemChange {
   annotations?: readonly CardAnnotation[];
   collapsed?: boolean;
@@ -302,19 +305,43 @@ export const createViewer = ({
     });
   };
 
+  /** The nearest file either side of `id` that has been loaded and has hunks. */
+  const neighbourWithHunks = (id: string, delta: number): DiffFileItem | null => {
+    const start = localIndex(id);
+    if (start < 0) return null;
+    for (let index = start + delta; index >= 0 && index < items.length; index += delta) {
+      const item = items[index];
+      if (item?.type === 'diff' && item.fileDiff.hunks.length > 0) return item;
+    }
+    return null;
+  };
+
   const stepHunk = (delta: number): void => {
     const id = store.get().selectedFile;
     if (id === null) return;
     const item = view.getItem(id);
-    if (!item || item.type !== 'diff') return;
-    const hunks = item.fileDiff.hunks;
-    if (hunks.length === 0) return;
+    if (!item) return;
+
+    const hunks = item.type === 'diff' ? item.fileDiff.hunks : [];
     const current = hunkCursor.get(id) ?? (delta > 0 ? -1 : hunks.length);
-    const index = Math.min(Math.max(current + delta, 0), hunks.length - 1);
-    hunkCursor.set(id, index);
-    const hunk = hunks[index];
-    if (!hunk) return;
-    scrollToHunk(id, hunk);
+    const index = current + delta;
+    const hunk = index >= 0 ? hunks[index] : undefined;
+    if (hunk) {
+      hunkCursor.set(id, index);
+      scrollToHunk(id, hunk);
+      return;
+    }
+
+    // Off either end of this file. The diff reads as one long list, so carry on
+    // into the next file that has hunks rather than stopping at the seam.
+    const next = neighbourWithHunks(id, delta);
+    if (!next) return;
+    const landing = delta > 0 ? 0 : next.fileDiff.hunks.length - 1;
+    const target = next.fileDiff.hunks[landing];
+    if (!target) return;
+    store.set({ selectedFile: next.id });
+    hunkCursor.set(next.id, landing);
+    scrollToHunk(next.id, target);
   };
 
   const jumpToHunk = (mark: HunkMark): void => {

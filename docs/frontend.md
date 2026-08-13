@@ -11,9 +11,9 @@ TypeScript is strict, including `noUncheckedIndexedAccess` and
 |---|---|
 | `core/` | the primitives: `dom`, `store`, `bus`, `component`, `router` |
 | `api/` | `client` (fetch + token), `sse`, `loader`, and the mirrored `types` |
-| `diff/` | the viewer, the hunk rail, the hunk list, item building, metrics, options, wheel |
+| `diff/` | the viewer, the hunk rail, the hunk list and arrows, item building, metrics, options, wheel |
 | `comments/` | the comments store, anchor maths, thread cards, the inbox |
-| `ui/` | shell, toolbar, dock, file tree, controls, status bar, keybinds, help, icons |
+| `ui/` | shell, toolbar, dock, file tree, controls, status bar, keybinds, help, icons, the narrow layout |
 | `theme/` | catppuccin flavors and the controller that applies them |
 | `styles/` | reset, fonts, and `app.css` |
 
@@ -31,6 +31,24 @@ and `panelView` picks which one is on show; the other is hidden in CSS rather
 than torn down, so neither loses its place. Every way in goes through one bus
 event, `panel:toggle`, carrying the list it wants: pressing the button of the
 list already showing closes the panel instead.
+
+## Narrow windows
+
+`ui/compact.ts` watches one media query, `(max-width: 48rem)`, and writes
+`compact` into the store; the shell mirrors it onto `data-compact`, which is the
+only hook the stylesheet needs. Crossing into it switches the diff to unified
+and folds the file tree away, remembering what it displaced so growing the
+window puts it back — including the server's `view` default, which lands after
+the first paint. Neither is forced: a choice made while narrow stands until the
+window crosses the line again.
+
+The tree and the panel do not shrink to fit, they stop taking a column of their
+own and stand in the diff's grid area instead, so they slide over it. The diff
+keeps its full width either way.
+
+`diff/hunk-nav.ts` is the pair of arrows floated over the bottom right corner
+while the window is narrow — the same `hunk:step` walk as `[` and `]`, for a
+window with no keyboard and a rail too thin to aim a thumb at.
 
 ## The component contract
 
@@ -104,6 +122,9 @@ Things to know before changing it:
 - `diff/hunks.ts` is the same hunks read out as a list, grouped by file, with
   the one the top of the view sits in marked. Both it and the rail work off
   `viewer.hunks()`, so a file that has not streamed in yet is in neither.
+- `stepHunk` walks the whole diff, not one file: running off either end of the
+  selected file carries on into the next loaded file that has hunks, and selects
+  it.
 - `diff/wheel.ts` exists for WebKit, which latches a wheel gesture to an element
   that cannot scroll on that axis and drops the delta. Do not "simplify" it away.
 
