@@ -42,6 +42,9 @@ textarea {
 
 button {
   cursor: pointer;
+  /* A second tap inside the double-tap window is another press of the same
+     button, never a request to zoom. Pinch still zooms. */
+  touch-action: manipulation;
 }
 
 ul,

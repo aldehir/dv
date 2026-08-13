@@ -163,15 +163,44 @@ samp,
   background: var(--dv-bg-raised);
 }
 
+/* A row rather than a single slot: a narrow window parks the dock in here. */
 .dv-shell__status {
+  display: flex;
   grid-area: status;
+  align-items: center;
   border-top: 1px solid var(--dv-border);
   background: var(--dv-bg-sunken);
 }
 
+.dv-shell__status > .dv-status {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
 .dv-shell[data-sidebar='hidden'] .dv-shell__sidebar,
-.dv-shell[data-panel='hidden'] .dv-shell__panel {
+.dv-shell[data-panel='hidden'] .dv-shell__panel,
+.dv-shell[data-compact='true'] .dv-shell__dock {
   display: none;
+}
+
+/* Fullscreen is the diff and nothing else. The floating button is the way back,
+   since the toolbar the toggle lives in is part of what goes. */
+.dv-shell[data-fullscreen='true'] .dv-shell__toolbar,
+.dv-shell[data-fullscreen='true'] .dv-shell__status {
+  display: none;
+}
+
+/* The far corner from the hunk arrows, so the two never fight for a thumb. */
+.dv-fullscreen-exit {
+  position: absolute;
+  bottom: 0.7rem;
+  left: 0.7rem;
+  z-index: 3;
+  color: var(--dv-fg-muted);
+  background: var(--dv-bg-raised);
+  border: 1px solid var(--dv-border-strong);
+  border-radius: 999px;
+  box-shadow: 0 0.25rem 1rem color-mix(in srgb, var(--dv-crust) 55%, transparent);
 }
 
 /* Both lists live in the panel and the dock picks between them, so the one that
@@ -202,6 +231,12 @@ samp,
 .dv-shell[data-compact='true'] .dv-icon-btn {
   width: 2.2rem;
   height: 2.2rem;
+}
+
+/* Lying down at the end of the status bar rather than standing beside the diff. */
+.dv-shell[data-compact='true'] .dv-dock {
+  flex-direction: row;
+  padding: 0.1rem 0.35rem 0.1rem 0;
 }
 
 /* Nothing survives a phone-width status bar; the file and the stream dot are
@@ -303,12 +338,12 @@ samp,
   cursor: grab;
 }
 
-/* Previous and next hunk, over the bottom right corner of the diff and clear of
-   the rail. Only a narrow window gets them: a pointer has the rail, and a
-   keyboard has `[` and `]`. */
+/* Previous and next hunk, over the bottom right corner of the diff. Only a
+   narrow window gets them — a pointer has the rail, and a keyboard has `[` and
+   `]` — which is also the width where the rail is not there to clear. */
 .dv-hunk-nav {
   position: absolute;
-  right: calc(var(--dv-rail-width) + 0.55rem);
+  right: 0.7rem;
   bottom: 0.7rem;
   z-index: 3;
   display: none;

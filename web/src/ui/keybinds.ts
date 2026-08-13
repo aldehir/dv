@@ -19,6 +19,7 @@ export const KEYBINDS: readonly KeybindDescription[] = [
   { keys: 'g', label: 'Toggle the comment inbox' },
   { keys: 'h', label: 'Toggle the hunk list' },
   { keys: 'b', label: 'Toggle the file tree' },
+  { keys: 'f', label: 'Toggle fullscreen' },
   { keys: '?', label: 'Toggle this help' },
   { keys: 'Esc', label: 'Dismiss overlays' },
 ];
@@ -81,6 +82,9 @@ export const createKeybinds = ({
         return true;
       case 'b':
         bus.emit('sidebar:toggle');
+        return true;
+      case 'f':
+        bus.emit('fullscreen:toggle');
         return true;
       case '?':
         bus.emit('help:toggle');

@@ -26,6 +26,8 @@ const setup = () => {
     'draft:focus',
     'comment:step',
     'panel:toggle',
+    'sidebar:toggle',
+    'fullscreen:toggle',
     'help:toggle',
     'overlay:dismiss',
   ] as (keyof BusEvents)[]) {
@@ -59,6 +61,8 @@ describe('createKeybinds', () => {
     press('p');
     press('g');
     press('h');
+    press('b');
+    press('f');
     press('?');
     expect(seen).toEqual([
       ['filter:focus', undefined],
@@ -67,6 +71,8 @@ describe('createKeybinds', () => {
       ['comment:step', { delta: -1 }],
       ['panel:toggle', 'comments'],
       ['panel:toggle', 'hunks'],
+      ['sidebar:toggle', undefined],
+      ['fullscreen:toggle', undefined],
       ['help:toggle', undefined],
     ]);
     keybinds.destroy();

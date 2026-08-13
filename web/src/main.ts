@@ -20,7 +20,9 @@ import { createCompactLayout } from './ui/compact';
 import { createControls } from './ui/controls';
 import { createDock } from './ui/dock';
 import { createFileTree } from './ui/file-tree';
+import { createFullscreen } from './ui/fullscreen';
 import { createKeybinds } from './ui/keybinds';
+import { createPointerKind } from './ui/pointer';
 import { createShell } from './ui/shell';
 import { createStatusBar } from './ui/status-bar';
 import { createToolbar } from './ui/toolbar';
@@ -33,8 +35,10 @@ const loader = createLoader({ ...deps, client });
 const comments = createCommentsStore({ ...deps, client });
 
 // Ahead of the shell and the viewer, so a narrow window draws unified with the
-// tree away rather than laying out twice.
+// tree away rather than laying out twice, and the diff is built for the pointer
+// it is about to be read with.
 createCompactLayout({ store });
+createPointerKind({ store });
 
 const shell = createShell({
   ...deps,
@@ -57,6 +61,7 @@ createKeybinds(deps);
 createRouter(deps);
 shell.main.appendChild(createRail({ ...deps, comments, viewer, scroller: root }).el);
 shell.main.appendChild(createHunkNav({ bus, viewer }).el);
+shell.main.appendChild(createFullscreen(deps).el);
 shell.panel.replaceChildren(
   createHunkList({ ...deps, comments, viewer }).el,
   createInbox({ ...deps, comments, viewer }).el,

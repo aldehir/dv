@@ -76,7 +76,9 @@ export const createRail = ({
 
   const render = (): void => {
     marks = viewer.hunks();
-    root.hidden = marks.length === 0;
+    // A hairline of ticks is no target for a thumb, and a narrow window has
+    // better uses for the width: the arrows and the hunk list stand in for it.
+    root.hidden = marks.length === 0 || store.get().compact;
 
     clear(ticks);
     // The first file needs no seam: the top of the rail already is its edge.
@@ -178,6 +180,7 @@ export const createRail = ({
   disposer.add(bus.on('manifest:ready', render));
   disposer.add(store.subscribe('view', render));
   disposer.add(store.subscribe('wrap', render));
+  disposer.add(store.subscribe('compact', render));
   disposer.add(store.subscribe('scrollTop', syncViewport));
   // Cards change the height of the items the ticks are placed inside.
   disposer.add(comments.subscribe(render));

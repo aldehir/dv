@@ -11,6 +11,7 @@ export interface ShellProps {
   panelVisible: boolean;
   panelView: PanelView;
   compact: boolean;
+  fullscreen: boolean;
   placeholder: string | null;
 }
 
@@ -46,6 +47,7 @@ export const shellProps = (state: AppState): ShellProps => ({
   panelVisible: state.panelVisible,
   panelView: state.panelView,
   compact: state.compact,
+  fullscreen: state.fullscreen,
   placeholder: placeholderFor(state),
 });
 
@@ -65,6 +67,8 @@ export const createShell = ({
   const main = el('div', { class: 'dv-shell__main' }, mount, placeholder);
   const panel = el('aside', { class: 'dv-shell__panel' });
   const overlays = el('div', { class: 'dv-shell__overlays' });
+  const dockStrip = el('aside', { class: 'dv-shell__dock' }, dock);
+  const footer = el('footer', { class: 'dv-shell__status' }, status);
 
   const root = el(
     'div',
@@ -78,8 +82,8 @@ export const createShell = ({
     ),
     main,
     panel,
-    el('aside', { class: 'dv-shell__dock' }, dock),
-    el('footer', { class: 'dv-shell__status' }, status),
+    dockStrip,
+    footer,
     overlays,
   );
 
@@ -88,6 +92,12 @@ export const createShell = ({
     root.dataset.panel = props.panelVisible ? 'visible' : 'hidden';
     root.dataset.panelView = props.panelView;
     root.dataset.compact = String(props.compact);
+    root.dataset.fullscreen = String(props.fullscreen);
+    // A narrow window cannot spare a column down the right edge for two
+    // buttons, and the reach of a thumb is the bottom of the screen anyway: the
+    // dock lies down in the status bar instead of standing beside the diff.
+    const host = props.compact ? footer : dockStrip;
+    if (dock.parentElement !== host) host.appendChild(dock);
     placeholder.hidden = props.placeholder === null;
     replaceChildren(placeholder, props.placeholder ?? '');
   };

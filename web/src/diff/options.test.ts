@@ -42,8 +42,14 @@ describe('buildOptions', () => {
     expect(options().themeType).toBe('system');
   });
 
-  it('never asks for the gutter affordance', () => {
-    expect(setup().options().enableGutterUtility).toBeUndefined();
+  // Selecting lines is the whole affordance under a mouse. Under a thumb that
+  // drag is the diff scrolling, and the plus in the gutter is what is left.
+  it('asks for the gutter affordance only under a thumb', () => {
+    const { store, options } = setup();
+    expect(options().enableGutterUtility).toBe(false);
+
+    store.set({ coarse: true });
+    expect(options().enableGutterUtility).toBe(true);
   });
 
   it('writes the viewer selection into the store and onto the bus', () => {

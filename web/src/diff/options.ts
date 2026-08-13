@@ -15,12 +15,37 @@ export const EXPANSION_LINE_COUNT = 20;
 export const HUNK_SEPARATORS = 'metadata' as const;
 
 /**
- * The library reveals per-file horizontal scrollbars on hover. Keep that, but
- * tint the thumb with the chrome's token so it matches the flavor.
+ * Patches to the library's own stylesheet, injected into its shadow root:
+ *
+ * - the per-file horizontal scrollbars it reveals on hover are worth keeping,
+ *   but the thumb should carry the chrome's token so it matches the flavor;
+ * - the plus in the gutter is a library default; the flavor's accent is not;
+ * - the line-number gutter is `touch-action: none`, so that a drag down it
+ *   selects a range of lines. That is a mouse gesture, and under a thumb it
+ *   turns the left edge of every file into a strip the diff will not scroll
+ *   from. Hand the gesture back — the plus is the handle that opens a range
+ *   under a thumb — and give that handle a target a thumb can actually land
+ *   on, without growing the 1lh square it draws.
  */
-export const SCROLLBAR_CSS = `
+export const SHADOW_CSS = `
 :host(:hover) [data-code]::-webkit-scrollbar-thumb {
   background-color: var(--dv-scroll-thumb);
+}
+
+[data-utility-button] {
+  background-color: var(--dv-accent);
+}
+
+@media (pointer: coarse) {
+  [data-column-number] {
+    touch-action: auto;
+  }
+
+  [data-utility-button]::after {
+    content: '';
+    position: absolute;
+    inset: -0.45lh;
+  }
 }
 `;
 
@@ -51,10 +76,22 @@ export const buildOptions = (
   expandUnchanged: true,
   expansionLineCount: EXPANSION_LINE_COUNT,
   enableLineSelection: true,
+  /**
+   * Selecting lines is the whole affordance, so under a mouse there is no plus
+   * in the gutter. A thumb has no drag to select with — that gesture is the
+   * diff scrolling — and the plus is the handle that replaces it: tap a line,
+   * then drag its handle to the other end of the range.
+   *
+   * The library arms it only when there is a handler here, and the range the
+   * drag ends on arrives through `onLineSelected` like any other — which
+   * leaves this with nothing of its own to do. Do not delete it.
+   */
+  enableGutterUtility: state.coarse,
+  onGutterUtilityClick() {},
   hunkSeparators: HUNK_SEPARATORS,
   layout: LAYOUT,
   itemMetrics: metrics,
-  unsafeCSS: SCROLLBAR_CSS,
+  unsafeCSS: SHADOW_CSS,
   __devOnlyValidateItemHeights: import.meta.env.DEV,
   onSelectedLinesChange(selection: CodeViewLineSelection | null) {
     store.set({ selection, selectedFile: selection?.id ?? store.get().selectedFile });

@@ -16,6 +16,7 @@ import { DRAFT_INPUT_CLASS, createCardList } from '../comments/thread';
 import type { Bus } from '../core/bus';
 import type { Disposable } from '../core/component';
 import { createDisposer } from '../core/component';
+import { on } from '../core/dom';
 import type { AppStore, LineRange, LineSelection } from '../core/store';
 import { themeOptionFor } from '../theme/catppuccin';
 import type { DiffItem } from './items';
@@ -420,6 +421,25 @@ export const createViewer = ({
   };
 
   disposer.add(forwardWheel(root));
+  // The draft card stands directly under the line the gutter's plus belongs
+  // to, and the library reads any point inside an annotation as that same
+  // line: with the card in place, the first hundred pixels of a drag down the
+  // handle go nowhere. Take it away for the length of the gesture — the range
+  // it settles on opens it again, under whichever line it ended up. Capture,
+  // because the library stops the press from propagating any further.
+  disposer.add(
+    on(
+      root,
+      'pointerdown',
+      (event) => {
+        const onHandle = event
+          .composedPath()
+          .some((node) => node instanceof Element && node.hasAttribute('data-utility-button'));
+        if (onHandle) store.set({ composing: null });
+      },
+      { capture: true },
+    ),
+  );
   disposer.add(view.subscribeToScroll((top) => store.set({ scrollTop: top })));
   disposer.add(bus.on('file:payload', add));
   disposer.add(
@@ -447,6 +467,7 @@ export const createViewer = ({
   );
   disposer.add(store.subscribe('view', applyOptions));
   disposer.add(store.subscribe('wrap', applyOptions));
+  disposer.add(store.subscribe('coarse', applyOptions));
   disposer.add(
     store.subscribe('commentsEnabled', () => {
       applyOptions();

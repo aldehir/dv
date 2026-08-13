@@ -70,6 +70,16 @@ export const createToolbar = ({ store, bus }: ToolbarDeps): Component<ToolbarPro
   const repo = el('span', { class: 'dv-toolbar__repo' });
   const rev = el('span', { class: 'dv-toolbar__rev' });
   const counts = el('div', { class: 'dv-counts' });
+  const fullscreenButton = el(
+    'button',
+    {
+      class: 'dv-icon-btn',
+      type: 'button',
+      ariaLabel: 'Fullscreen',
+      title: 'Fullscreen',
+    },
+    icon('expand'),
+  );
   const helpButton = el('button', {
     class: 'dv-icon-btn',
     type: 'button',
@@ -90,6 +100,7 @@ export const createToolbar = ({ store, bus }: ToolbarDeps): Component<ToolbarPro
     ),
     el('div', { class: 'dv-toolbar__spacer' }),
     counts,
+    fullscreenButton,
     helpButton,
   );
 
@@ -116,6 +127,7 @@ export const createToolbar = ({ store, bus }: ToolbarDeps): Component<ToolbarPro
     );
   };
 
+  disposer.add(on(fullscreenButton, 'click', () => bus.emit('fullscreen:toggle')));
   disposer.add(on(helpButton, 'click', () => bus.emit('help:toggle')));
   disposer.add(on(sidebarButton, 'click', () => bus.emit('sidebar:toggle')));
   disposer.add(store.subscribe((state) => update(toolbarProps(state))));

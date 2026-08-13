@@ -51,6 +51,10 @@ export interface AppState {
   panelView: PanelView;
   /** The window is too narrow to hold anything beside the diff. */
   compact: boolean;
+  /** The pointer is a thumb, not a mouse. */
+  coarse: boolean;
+  /** Chrome folded away so the diff has the whole window. */
+  fullscreen: boolean;
   commentsEnabled: boolean;
   commentCounts: Record<string, number>;
   fileState: Record<string, FileLoadState>;
@@ -75,6 +79,8 @@ export const createInitialState = (): AppState => ({
   // Hunks, not comments: a repository opened without `--comments` still has them.
   panelView: 'hunks',
   compact: false,
+  coarse: false,
+  fullscreen: false,
   commentsEnabled: false,
   commentCounts: {},
   fileState: {},

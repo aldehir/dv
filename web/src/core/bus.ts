@@ -36,6 +36,7 @@ export interface BusEvents {
   /** Show this list in the panel, or close the panel when it already is. */
   'panel:toggle': PanelView;
   'sidebar:toggle': void;
+  'fullscreen:toggle': void;
   'help:toggle': void;
   'overlay:dismiss': void;
 }

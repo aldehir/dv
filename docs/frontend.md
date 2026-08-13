@@ -13,7 +13,7 @@ TypeScript is strict, including `noUncheckedIndexedAccess` and
 | `api/` | `client` (fetch + token), `sse`, `loader`, and the mirrored `types` |
 | `diff/` | the viewer, the hunk rail, the hunk list and arrows, item building, metrics, options, wheel |
 | `comments/` | the comments store, anchor maths, thread cards, the inbox |
-| `ui/` | shell, toolbar, dock, file tree, controls, status bar, keybinds, help, icons, the narrow layout |
+| `ui/` | shell, toolbar, dock, file tree, controls, status bar, keybinds, help, fullscreen, icons, the narrow layout, the pointer kind |
 | `theme/` | catppuccin flavors and the controller that applies them |
 | `styles/` | reset, fonts, and `app.css` |
 
@@ -46,9 +46,42 @@ The tree and the panel do not shrink to fit, they stop taking a column of their
 own and stand in the diff's grid area instead, so they slide over it. The diff
 keeps its full width either way.
 
-`diff/hunk-nav.ts` is the pair of arrows floated over the bottom right corner
-while the window is narrow — the same `hunk:step` walk as `[` and `]`, for a
-window with no keyboard and a rail too thin to aim a thumb at.
+Nothing else keeps a column down the right edge either. The dock lies down at
+the end of the status bar, where a thumb can reach it, and the rail hides — a
+hairline of ticks is no touch target, and the width is better spent on code.
+`diff/hunk-nav.ts` stands in for it: the pair of arrows floated over the bottom
+right corner, walking the same `hunk:step` as `[` and `]`.
+
+## Touch
+
+A different axis from narrow, so a different flag: `ui/pointer.ts` watches
+`(pointer: coarse)` and writes `coarse` into the store. A phone is both, a
+laptop with a dragged-in window is only compact, a tablet in landscape is only
+coarse.
+
+- `button` is `touch-action: manipulation` in the reset, so a quick second tap
+  on the hunk arrows is another press rather than a zoom.
+- The library holds its line-number gutter still (`touch-action: none`) so a
+  drag down it selects a range. Under a thumb that turns the left edge of every
+  file into a strip the diff will not scroll from, so `SHADOW_CSS` hands the
+  gesture back under `(pointer: coarse)`.
+- Which leaves a thumb with no way to reach a range, so `coarse` turns the
+  library's gutter plus back on — the button `8ad0be5` took away when selecting
+  lines became the whole affordance, and the one place that still needs it.
+  Tap a line, then drag its handle to the other end. The viewer drops
+  `composing` on a press that lands on the handle: the draft card hangs under
+  the line the handle belongs to, and the library reads any point inside an
+  annotation as that same line, so leaving the card there costs the drag its
+  first hundred pixels downward.
+
+## Fullscreen
+
+`ui/fullscreen.ts` owns both halves of it. `fullscreen` in the store folds the
+toolbar and the status bar away, which is all that iOS Safari on a phone can
+have; where the browser does support element fullscreen it is asked for too, and
+followed back out, so leaving through the browser's own gesture puts the chrome
+back. The floating button is the way out: fullscreen hides the toolbar the
+toggle lives in, and a phone has no `f` to press.
 
 ## The component contract
 
@@ -116,7 +149,7 @@ Things to know before changing it:
 
 - `CodeView` **virtualises**: only visible rows exist in the DOM.
 - It renders into a **shadow root**. Chrome styles do not leak in; theme tokens
-  are passed as options and `SCROLLBAR_CSS` is injected deliberately.
+  are passed as options and `SHADOW_CSS` is injected deliberately.
 - `diff/rail.ts` draws every hunk down the right edge and *is* the scrollbar —
   drag, track press, wheel, and tick jumps all go through it.
 - `diff/hunks.ts` is the same hunks read out as a list, grouped by file, with
@@ -138,7 +171,9 @@ the cards; `comments/inbox.ts` is the side panel, split into anchored and
 unanchored.
 
 The draft box follows the current selection — selecting lines is the whole
-affordance. `c` focuses it, `Esc` drops the selection but keeps the text.
+affordance, with the gutter plus standing in for the drag where the pointer is
+a thumb (see [Touch](#touch)). `c` focuses it, `Esc` drops the selection but
+keeps the text.
 
 ## Theming
 
@@ -175,6 +210,7 @@ add a binding there and the help updates itself.
 | `g` | toggle the comment inbox |
 | `h` | toggle the hunk list |
 | `b` | toggle the file tree |
+| `f` | toggle fullscreen |
 | `?` | help |
 | `Esc` | dismiss overlays |
 
