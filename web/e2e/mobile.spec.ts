@@ -157,6 +157,43 @@ test.describe('under a thumb', () => {
     }
   });
 
+  /** The library gives every file its own; both axes have to be dead. */
+  const codeOverflow = (page: Page) =>
+    page.evaluate(() => {
+      const code = document.querySelector('diffs-container')?.shadowRoot?.querySelector(
+        '[data-code]',
+      );
+      if (!code) return 'no code block';
+      const styles = getComputedStyle(code);
+      return `${styles.overflowX}/${styles.overflowY}`;
+    });
+
+  // WebKit hands a touch to the scroller under it and then drops the gesture
+  // when that element cannot move on the gesture's axis. Over a hunk tall enough
+  // to fill the screen there is nowhere else to put a finger, so the only fix is
+  // for there to be no scroller under it — wrapped or not.
+  test('leaves no scroller under the finger but the diff', async ({ page }) => {
+    await expect(page.locator('[aria-label="Wrap long lines"]')).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    expect(await codeOverflow(page)).toBe('clip/clip');
+
+    await page.locator('[aria-label="Toggle the file tree"]').click();
+    await page.locator('[aria-label="Wrap long lines"]').click();
+    await page.locator('[aria-label="Toggle the file tree"]').click();
+
+    await expect(page.locator('[aria-label="Wrap long lines"]')).toHaveAttribute(
+      'aria-pressed',
+      'false',
+    );
+    expect(await codeOverflow(page)).toBe('clip/clip');
+
+    await startAt(page, 400);
+    await swipe(page, 200, 400, 150);
+    await expect.poll(() => scrollTop(page)).toBeLessThan(350);
+  });
+
   // Which leaves the plus in the gutter as the way to a range: tap a line, then
   // drag its handle. Both directions — down means crossing the draft card the
   // tap just opened, which the viewer takes away for the length of the drag.

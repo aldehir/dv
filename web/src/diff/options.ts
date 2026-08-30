@@ -25,7 +25,15 @@ export const HUNK_SEPARATORS = 'metadata' as const;
  *   turns the left edge of every file into a strip the diff will not scroll
  *   from. Hand the gesture back — the plus is the handle that opens a range
  *   under a thumb — and give that handle a target a thumb can actually land
- *   on, without growing the 1lh square it draws.
+ *   on, without growing the 1lh square it draws;
+ * - every file gets its own horizontal scroller, and WebKit latches a touch
+ *   onto the scroller under it and then drops the gesture, because that element
+ *   cannot move on the axis the gesture is on — its y is `clip`. Wrapping does
+ *   not save it: an empty scroll container is still the one WebKit picks. So
+ *   under a thumb it stops being a scroll container at all, which costs code
+ *   its sideways drag and buys the diff its vertical one. `clip`, not `hidden`:
+ *   `hidden` is still a scroll container. A thumb reads wrapped by default
+ *   (`ui/pointer.ts`), where there is nothing to drag sideways anyway.
  */
 export const SHADOW_CSS = `
 :host(:hover) [data-code]::-webkit-scrollbar-thumb {
@@ -45,6 +53,10 @@ export const SHADOW_CSS = `
     content: '';
     position: absolute;
     inset: -0.45lh;
+  }
+
+  [data-code] {
+    --diffs-overflow-override: clip;
   }
 }
 `;

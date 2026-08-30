@@ -139,8 +139,9 @@ dv=$PWD/bin/dv && cd /tmp/dv-e2e-repo && "$dv" HEAD~1
   the tree collapsed, the tree sliding over the diff rather than squeezing it,
   the floating hunk arrows walking on past the end of a file, the full window
   going to the diff, fullscreen, and — under emulated touch — a swipe that
-  starts on the line numbers scrolling like any other, plus the gutter handle
-  opening a range in either direction. Playwright drives taps
+  starts on the line numbers scrolling like any other, no scroller left under
+  the finger whether code wraps or not, and the gutter handle opening a range in
+  either direction. Playwright drives taps
   but not drags, so that last one goes in through CDP as a raw touch stream;
   `Input.synthesizeScrollGesture` with a touch source never reaches the
   compositor in this browser.

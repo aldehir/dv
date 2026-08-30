@@ -57,7 +57,20 @@ right corner, walking the same `hunk:step` as `[` and `]`.
 A different axis from narrow, so a different flag: `ui/pointer.ts` watches
 `(pointer: coarse)` and writes `coarse` into the store. A phone is both, a
 laptop with a dragged-in window is only compact, a tablet in landscape is only
-coarse.
+coarse. It also turns soft wrapping on, remembering what it displaced the way
+`compact` does — including the server's `wrap` default, which lands after the
+first paint.
+
+- The library gives every file its own horizontal scroller (`[data-code]` is
+  `overflow: scroll clip`), and WebKit hands a touch to the scroller under it
+  and then drops the gesture, because that element cannot move on the axis the
+  gesture is on. It is the same latch `diff/wheel.ts` carries a trackpad
+  workaround for, and over a hunk tall enough to fill the screen there is
+  nowhere else to put a finger: the diff simply refuses to move. Wrapping does
+  not save it — an empty scroll container is still the one WebKit picks — so
+  `SHADOW_CSS` stops it being a scroll container at all under
+  `(pointer: coarse)`, `clip` on both axes. That costs code its sideways drag on
+  touch, which is why the wrapping is the default and not merely an option.
 
 - `button` is `touch-action: manipulation` in the reset, so a quick second tap
   on the hunk arrows is another press rather than a zoom.
