@@ -56,7 +56,8 @@ sits behind `guardToken`. `/healthz` and the assets are exempt.
   lookup, and the stream all agree without re-shelling per request.
 - **`/api/stream`** pushes `manifest`, then one `file` event per file resolved
   by a worker pool (half your cores, clamped to 2–8), then `done`. It is how the
-  UI gets everything without a request per file.
+  UI gets everything without a request per file. Files come out in completion
+  order; the viewer holds them and appends in manifest order.
 - **`/api/comments/stream`** watches `comments.json` with fsnotify (80ms
   debounce) and re-pushes the whole document on change, so an editor writing the
   file and the browser stay in sync.

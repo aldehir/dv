@@ -130,7 +130,13 @@ export const createViewer = ({
 }: ViewerDeps): Viewer => {
   const disposer = createDisposer();
   const items: DiffItem[] = [];
+  /** Manifest position by file id, and the ids in that order. */
   const rank = new Map<string, number>();
+  let order: string[] = [];
+  /** Payloads that arrived ahead of a file ranked before them, by id. */
+  const waiting = new Map<string, FilePayload>();
+  /** The manifest position the next append has to come from. */
+  let cursor = 0;
   const signatures = new Map<string, string>();
   const hunkCursor = new Map<string, number>();
   let metrics: VirtualFileMetrics = measureMetrics(root);
@@ -197,17 +203,6 @@ export const createViewer = ({
     void workers?.setRenderOptions({ theme: themeOptionFor(store.get().themePref) });
   };
 
-  const rankOf = (id: string): number => rank.get(id) ?? Number.MAX_SAFE_INTEGER;
-
-  const insertionIndex = (id: string): number => {
-    const target = rankOf(id);
-    for (let index = items.length; index > 0; index -= 1) {
-      const previous = items[index - 1];
-      if (!previous || rankOf(previous.id) <= target) return index;
-    }
-    return 0;
-  };
-
   const localIndex = (id: string): number => items.findIndex((item) => item.id === id);
 
   const publishItem = (item: DiffItem): boolean => {
@@ -263,26 +258,64 @@ export const createViewer = ({
     if (pendingFile === id) revealFile(id);
   };
 
-  const add = (payload: FilePayload): void => {
+  const append = (payload: FilePayload): void => {
     const annotations = annotationsFor(comments.threadsFor(payload.id), draftAt(payload.id));
     signatures.set(payload.id, annotationSignature(annotations));
     const next = itemFor(payload, annotations);
 
     if (view.getItem(payload.id)) {
       publishItem(next);
-      flushPending(payload.id);
-      return;
-    }
-
-    const position = insertionIndex(payload.id);
-    if (position >= items.length) {
+    } else {
       items.push(next);
       view.addItems([next]);
-    } else {
-      items.splice(position, 0, next);
-      view.setItems(items);
     }
     flushPending(payload.id);
+  };
+
+  /**
+   * Whether nothing more is coming for this file, so the ones ranked behind
+   * it may land: its fetch failed, or the stream has finished without it.
+   */
+  const settled = (id: string): boolean => {
+    const { fileState, stream } = store.get();
+    return fileState[id]?.status === 'error' || stream === 'done' || stream === 'closed';
+  };
+
+  /** Appends every waiting payload whose predecessors have all landed or settled. */
+  const flush = (): void => {
+    while (cursor < order.length) {
+      const id = order[cursor];
+      if (id === undefined) break;
+      const queued = waiting.get(id);
+      if (queued) {
+        waiting.delete(id);
+        append(queued);
+      } else if (!view.getItem(id) && !settled(id)) {
+        break;
+      }
+      cursor += 1;
+    }
+  };
+
+  /**
+   * Files come off the stream in whatever order the server's workers finish
+   * them, and the diff holds them in manifest order. Splicing a late one into
+   * place hands the library a reordered list, and its rebuild keeps its render
+   * range by position: a file drawn near the top and then pushed down by an
+   * insertion above it kept its element for good, and that stray element
+   * skewed the sticky window every scroll ran through. So a payload waits
+   * until everything ranked ahead of it has landed or settled, and only ever
+   * goes on the end. One that was skipped as settled and turns up later goes
+   * on the end too, out of place rather than spliced in.
+   */
+  const add = (payload: FilePayload): void => {
+    const position = rank.get(payload.id);
+    if (view.getItem(payload.id) || position === undefined || position < cursor) {
+      append(payload);
+      return;
+    }
+    waiting.set(payload.id, payload);
+    flush();
   };
 
   const refreshAnnotations = (): void => {
@@ -444,10 +477,17 @@ export const createViewer = ({
   disposer.add(bus.on('file:payload', add));
   disposer.add(
     bus.on('manifest:ready', (manifest) => {
+      order = manifest.files.map((file) => file.id);
       rank.clear();
-      manifest.files.forEach((file, index) => rank.set(file.id, index));
+      order.forEach((id, index) => rank.set(id, index));
+      // The manifest lands twice, fetched and then off the stream. Starting
+      // over is cheap: the flush walks past whatever is already in.
+      cursor = 0;
+      flush();
     }),
   );
+  disposer.add(store.subscribe('fileState', flush));
+  disposer.add(store.subscribe('stream', flush));
   disposer.add(
     bus.on('file:selected', ({ id, reveal }) => {
       loadFile(id);

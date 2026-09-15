@@ -129,8 +129,9 @@ dv=$PWD/bin/dv && cd /tmp/dv-e2e-repo && "$dv" HEAD~1
 
 ### Current suites
 
-- `e2e/smoke.spec.ts` — the diff renders and tokenizes, catppuccin reaches the
-  code surface, split/unified toggling, unchanged context arriving outside the
+- `e2e/smoke.spec.ts` — the diff renders and tokenizes, the head of the diff is
+  a contiguous run of the manifest, catppuccin reaches the code surface,
+  split/unified toggling, unchanged context arriving outside the
   hunks, no console errors while scrolling, a comment surviving a reload and
   landing in `comments.json`, and the draft box tracking a selection drag.
 - `e2e/rail.spec.ts` — the hunk rail as a scrollbar: drag, track press, wheel

@@ -171,6 +171,10 @@ const ids = (view: CodeView<Card[]>): string[] => {
   return found;
 };
 
+/** The ids the view holds, in the order it lays them out. */
+const order = (view: CodeView<Card[]>): string[] =>
+  ids(view).sort((a, b) => (view.getTopForItem(a) ?? 0) - (view.getTopForItem(b) ?? 0));
+
 beforeEach(() => {
   vi.stubGlobal('ResizeObserver', StubResizeObserver);
   instances = [];
@@ -185,18 +189,53 @@ beforeEach(() => {
 });
 
 describe('createViewer', () => {
-  it('appends streamed payloads in manifest order', () => {
-    const it0 = bench();
-    it0.bus.emit('manifest:ready', manifest());
-    it0.bus.emit('file:payload', payload('f3', 'src/f3.ts'));
-    it0.bus.emit('file:payload', payload('f1', 'src/f1.ts'));
-    it0.bus.emit('file:payload', payload('f2', 'src/f2.ts'));
+  it('holds a payload until everything ranked ahead of it has landed', () => {
+    const harness = bench();
+    // A reordered list is what leaves the library's render range pointing at
+    // the wrong records, so every add has to be an append.
+    const setItems = vi.spyOn(harness.view(), 'setItems');
+    harness.bus.emit('manifest:ready', manifest());
+    harness.bus.emit('file:payload', payload('f3', 'src/f3.ts'));
+    expect(ids(harness.view())).toEqual([]);
 
-    expect(ids(it0.view())).toEqual(['f1', 'f2', 'f3']);
-    expect(it0.view().getTopForItem('f1')).toBeLessThanOrEqual(
-      it0.view().getTopForItem('f3') ?? Number.NaN,
-    );
-    it0.viewer.destroy();
+    harness.bus.emit('file:payload', payload('f1', 'src/f1.ts'));
+    expect(order(harness.view())).toEqual(['f1']);
+
+    harness.bus.emit('file:payload', payload('f2', 'src/f2.ts'));
+    expect(order(harness.view())).toEqual(['f1', 'f2', 'f3']);
+    expect(setItems).not.toHaveBeenCalled();
+    harness.viewer.destroy();
+  });
+
+  it('skips a file whose fetch failed so the ones behind it can land', () => {
+    const harness = bench();
+    harness.bus.emit('manifest:ready', manifest());
+    harness.bus.emit('file:payload', payload('f3', 'src/f3.ts'));
+    harness.bus.emit('file:payload', payload('f1', 'src/f1.ts'));
+    expect(order(harness.view())).toEqual(['f1']);
+
+    harness.store.set({ fileState: { f2: { status: 'error', error: 'no such blob' } } });
+    expect(order(harness.view())).toEqual(['f1', 'f3']);
+    harness.viewer.destroy();
+  });
+
+  it('lets the rest through once the stream has ended, and a late file goes on the end', () => {
+    const harness = bench();
+    harness.bus.emit('manifest:ready', manifest());
+    harness.bus.emit('file:payload', payload('f3', 'src/f3.ts'));
+    harness.store.set({ stream: 'done' });
+    expect(order(harness.view())).toEqual(['f3']);
+
+    harness.bus.emit('file:payload', payload('f1', 'src/f1.ts'));
+    expect(order(harness.view())).toEqual(['f3', 'f1']);
+    harness.viewer.destroy();
+  });
+
+  it('takes a payload as it comes when no manifest names an order', () => {
+    const harness = bench();
+    harness.bus.emit('file:payload', payload('f2', 'src/f2.ts'));
+    expect(ids(harness.view())).toEqual(['f2']);
+    harness.viewer.destroy();
   });
 
   it('enables expansion by attaching the full contents', () => {

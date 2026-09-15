@@ -83,6 +83,30 @@ test('renders a real diff with highlighted lines', async ({ page }) => {
   await expect.poll(() => changed.count(), { timeout: 15_000 }).toBeGreaterThan(0);
 });
 
+/*
+ * Files stream in completion order and the viewer appends them in manifest
+ * order, so at the top of the diff whatever is rendered is the head of the
+ * manifest, contiguous. A file rendered out of place is the stray element that
+ * used to throw the sticky window off mid-scroll.
+ */
+test('renders the head of the diff as a contiguous run of the manifest', async ({ page }) => {
+  await waitForDiff(page);
+
+  const response = await page.request.get('/api/manifest', {
+    headers: { 'X-Dv-Token': 'e2e-token' },
+  });
+  const manifest = (await response.json()) as { files: { path: string }[] };
+  const rendered = await page.evaluate(() =>
+    [...document.querySelectorAll('diffs-container')].map(
+      (container) =>
+        container.shadowRoot?.querySelector('[data-title]')?.textContent?.trim() ?? '',
+    ),
+  );
+
+  expect(rendered.length).toBeGreaterThan(0);
+  expect(rendered).toEqual(manifest.files.slice(0, rendered.length).map((file) => file.path));
+});
+
 test('paints the code surface with catppuccin, not the library default', async ({ page }) => {
   await openHighlightableFile(page);
 

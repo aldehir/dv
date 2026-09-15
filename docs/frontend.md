@@ -171,6 +171,12 @@ Things to know before changing it:
 - `stepHunk` walks the whole diff, not one file: running off either end of the
   selected file carries on into the next loaded file that has hunks, and selects
   it.
+- Files stream in whatever order the server's workers finish them. The viewer
+  holds a payload until everything ranked ahead of it has landed or failed, and
+  only ever appends; it never hands `CodeView` a reordered list. The library's
+  rebuild keeps its render range by position, so a file drawn near the top and
+  then pushed down by an insertion above it kept its element, and that stray
+  element skewed the sticky window every scroll ran through.
 - `diff/wheel.ts` exists for WebKit, which latches a wheel gesture to an element
   that cannot scroll on that axis and drops the delta. Do not "simplify" it away.
 
