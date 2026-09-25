@@ -133,69 +133,14 @@ test.describe('under a thumb', () => {
     await cdp.detach();
   };
 
-  const startAt = async (page: Page, top: number) => {
-    await page.evaluate((value) => {
-      const node = document.querySelector('.dv-shell__mount');
-      if (node) node.scrollTop = value;
-    }, top);
-  };
-
   /** The route carries the selection, and a range reads `L16-L20`. */
   const hash = (page: Page) => page.evaluate(() => location.hash);
 
   /** A line number at the left edge of whatever the diff is showing. */
   const GUTTER = { x: 14, y: 400 };
 
-  // The library holds the line numbers still so a drag down them selects a
-  // range. That is a mouse gesture: under a thumb the gutter is a strip down
-  // the left of every file that the diff would not scroll from.
-  test('scrolls from the line numbers as readily as from the code', async ({ page }) => {
-    for (const x of [12, 40, 200]) {
-      await startAt(page, 400);
-      await swipe(page, x, 400, 150);
-      await expect.poll(() => scrollTop(page)).toBeLessThan(350);
-    }
-  });
-
-  /** The library gives every file its own; both axes have to be dead. */
-  const codeOverflow = (page: Page) =>
-    page.evaluate(() => {
-      const code = document.querySelector('diffs-container')?.shadowRoot?.querySelector(
-        '[data-code]',
-      );
-      if (!code) return 'no code block';
-      const styles = getComputedStyle(code);
-      return `${styles.overflowX}/${styles.overflowY}`;
-    });
-
-  // WebKit hands a touch to the scroller under it and then drops the gesture
-  // when that element cannot move on the gesture's axis. Over a hunk tall enough
-  // to fill the screen there is nowhere else to put a finger, so the only fix is
-  // for there to be no scroller under it — wrapped or not.
-  test('leaves no scroller under the finger but the diff', async ({ page }) => {
-    await expect(page.locator('[aria-label="Wrap long lines"]')).toHaveAttribute(
-      'aria-pressed',
-      'true',
-    );
-    expect(await codeOverflow(page)).toBe('clip/clip');
-
-    await page.locator('[aria-label="Toggle the file tree"]').click();
-    await page.locator('[aria-label="Wrap long lines"]').click();
-    await page.locator('[aria-label="Toggle the file tree"]').click();
-
-    await expect(page.locator('[aria-label="Wrap long lines"]')).toHaveAttribute(
-      'aria-pressed',
-      'false',
-    );
-    expect(await codeOverflow(page)).toBe('clip/clip');
-
-    await startAt(page, 400);
-    await swipe(page, 200, 400, 150);
-    await expect.poll(() => scrollTop(page)).toBeLessThan(350);
-  });
-
-  // Which leaves the plus in the gutter as the way to a range: tap a line, then
-  // drag its handle. Both directions — down means crossing the draft card the
+  // A drag across the code is the diff scrolling, which leaves the plus in the
+  // gutter as the way to a range: tap a line, then drag its handle. Both directions — down means crossing the draft card the
   // tap just opened, which the viewer takes away for the length of the drag.
   for (const [direction, distance] of [
     ['down', 90],

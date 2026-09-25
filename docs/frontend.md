@@ -11,7 +11,7 @@ TypeScript is strict, including `noUncheckedIndexedAccess` and
 |---|---|
 | `core/` | the primitives: `dom`, `store`, `bus`, `component`, `router` |
 | `api/` | `client` (fetch + token), `sse`, `loader`, and the mirrored `types` |
-| `diff/` | the viewer, the hunk rail, the hunk list and arrows, item building, metrics, options, wheel |
+| `diff/` | the viewer, the hunk rail, the hunk list and arrows, item building, metrics, options |
 | `comments/` | the comments store, anchor maths, thread cards, the inbox |
 | `ui/` | shell, toolbar, dock, file tree, controls, status bar, keybinds, help, fullscreen, icons, the narrow layout, the pointer kind |
 | `theme/` | catppuccin flavors and the controller that applies them |
@@ -57,30 +57,14 @@ right corner, walking the same `hunk:step` as `[` and `]`.
 A different axis from narrow, so a different flag: `ui/pointer.ts` watches
 `(pointer: coarse)` and writes `coarse` into the store. A phone is both, a
 laptop with a dragged-in window is only compact, a tablet in landscape is only
-coarse. It also turns soft wrapping on, remembering what it displaced the way
-`compact` does — including the server's `wrap` default, which lands after the
-first paint.
-
-- The library gives every file its own horizontal scroller (`[data-code]` is
-  `overflow: scroll clip`), and WebKit hands a touch to the scroller under it
-  and then drops the gesture, because that element cannot move on the axis the
-  gesture is on. It is the same latch `diff/wheel.ts` carries a trackpad
-  workaround for, and over a hunk tall enough to fill the screen there is
-  nowhere else to put a finger: the diff simply refuses to move. Wrapping does
-  not save it — an empty scroll container is still the one WebKit picks — so
-  `SHADOW_CSS` stops it being a scroll container at all under
-  `(pointer: coarse)`, `clip` on both axes. That costs code its sideways drag on
-  touch, which is why the wrapping is the default and not merely an option.
+coarse.
 
 - `button` is `touch-action: manipulation` in the reset, so a quick second tap
   on the hunk arrows is another press rather than a zoom.
-- The library holds its line-number gutter still (`touch-action: none`) so a
-  drag down it selects a range. Under a thumb that turns the left edge of every
-  file into a strip the diff will not scroll from, so `SHADOW_CSS` hands the
-  gesture back under `(pointer: coarse)`.
-- Which leaves a thumb with no way to reach a range, so `coarse` turns the
-  library's gutter plus back on — the button `8ad0be5` took away when selecting
-  lines became the whole affordance, and the one place that still needs it.
+- A drag across the code is the diff scrolling, which leaves a thumb with no
+  way to reach a range, so `coarse` turns the library's gutter plus back on —
+  the button `8ad0be5` took away when selecting lines became the whole
+  affordance, and the one place that still needs it.
   Tap a line, then drag its handle to the other end. The viewer drops
   `composing` on a press that lands on the handle: the draft card hangs under
   the line the handle belongs to, and the library reads any point inside an
@@ -177,8 +161,6 @@ Things to know before changing it:
   rebuild keeps its render range by position, so a file drawn near the top and
   then pushed down by an insertion above it kept its element, and that stray
   element skewed the sticky window every scroll ran through.
-- `diff/wheel.ts` exists for WebKit, which latches a wheel gesture to an element
-  that cannot scroll on that axis and drops the delta. Do not "simplify" it away.
 
 ## Comments in the UI
 

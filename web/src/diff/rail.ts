@@ -5,7 +5,6 @@ import { createDisposer } from '../core/component';
 import { clear, el, frag, on } from '../core/dom';
 import type { AppStore } from '../core/store';
 import type { HunkMark, Viewer } from './viewer';
-import { wheelDelta } from './wheel';
 
 export interface RailDeps {
   store: AppStore;
@@ -18,6 +17,18 @@ export interface RailDeps {
 
 /** How far a press has to travel before it is a drag rather than a click. */
 const DEAD_ZONE = 3;
+
+const LINE_HEIGHT = 16;
+const PAGE_FRACTION = 0.9;
+
+/** Wheel deltas arrive in pixels, lines, or pages depending on the device. */
+export const wheelDelta = (event: WheelEvent, viewport: number): number => {
+  if (event.deltaMode === WheelEvent.DOM_DELTA_LINE) return event.deltaY * LINE_HEIGHT;
+  if (event.deltaMode === WheelEvent.DOM_DELTA_PAGE) {
+    return event.deltaY * viewport * PAGE_FRACTION;
+  }
+  return event.deltaY;
+};
 
 const percent = (fraction: number): string =>
   `${(Math.min(Math.max(fraction, 0), 1) * 100).toFixed(3)}%`;

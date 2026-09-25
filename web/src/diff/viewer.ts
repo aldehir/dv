@@ -23,7 +23,6 @@ import type { DiffItem } from './items';
 import { itemFor, withAnnotations } from './items';
 import { measureMetrics, measuredMetrics } from './metrics';
 import { buildOptions } from './options';
-import { forwardWheel } from './wheel';
 
 const WORKER_POOL_SIZE = 4;
 
@@ -453,7 +452,6 @@ export const createViewer = ({
     revealRange(thread.fileId, rangeFor(thread));
   };
 
-  disposer.add(forwardWheel(root));
   // The draft card stands directly under the line the gutter's plus belongs
   // to, and the library reads any point inside an annotation as that same
   // line: with the card in place, the first hundred pixels of a drag down the

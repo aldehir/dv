@@ -3,7 +3,7 @@ import type { FilePayload } from '../api/types';
 import type { CommentsStore } from '../comments/store';
 import { createBus } from '../core/bus';
 import { createInitialState, createStore } from '../core/store';
-import { createRail } from './rail';
+import { createRail, wheelDelta } from './rail';
 import type { HunkMark, Viewer, Viewport } from './viewer';
 
 const mark = (
@@ -292,5 +292,18 @@ describe('createRail', () => {
     it0.touchComments();
 
     expect(it0.ticks()).toHaveLength(1);
+  });
+});
+
+describe('wheelDelta', () => {
+  const wheel = (init: WheelEventInit): WheelEvent => new WheelEvent('wheel', init);
+
+  it('passes pixel deltas straight through', () => {
+    expect(wheelDelta(wheel({ deltaY: 42, deltaMode: 0 }), 500)).toBe(42);
+  });
+
+  it('scales line and page deltas into pixels', () => {
+    expect(wheelDelta(wheel({ deltaY: 3, deltaMode: 1 }), 500)).toBe(48);
+    expect(wheelDelta(wheel({ deltaY: 1, deltaMode: 2 }), 500)).toBe(450);
   });
 });

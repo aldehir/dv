@@ -20,20 +20,9 @@ export const HUNK_SEPARATORS = 'metadata' as const;
  * - the per-file horizontal scrollbars it reveals on hover are worth keeping,
  *   but the thumb should carry the chrome's token so it matches the flavor;
  * - the plus in the gutter is a library default; the flavor's accent is not;
- * - the line-number gutter is `touch-action: none`, so that a drag down it
- *   selects a range of lines. That is a mouse gesture, and under a thumb it
- *   turns the left edge of every file into a strip the diff will not scroll
- *   from. Hand the gesture back — the plus is the handle that opens a range
- *   under a thumb — and give that handle a target a thumb can actually land
- *   on, without growing the 1lh square it draws;
- * - every file gets its own horizontal scroller, and WebKit latches a touch
- *   onto the scroller under it and then drops the gesture, because that element
- *   cannot move on the axis the gesture is on — its y is `clip`. Wrapping does
- *   not save it: an empty scroll container is still the one WebKit picks. So
- *   under a thumb it stops being a scroll container at all, which costs code
- *   its sideways drag and buys the diff its vertical one. `clip`, not `hidden`:
- *   `hidden` is still a scroll container. A thumb reads wrapped by default
- *   (`ui/pointer.ts`), where there is nothing to drag sideways anyway.
+ * - under a thumb the plus is the handle that opens a range, so give it a
+ *   target a thumb can actually land on, without growing the 1lh square it
+ *   draws.
  */
 export const SHADOW_CSS = `
 :host(:hover) [data-code]::-webkit-scrollbar-thumb {
@@ -45,18 +34,10 @@ export const SHADOW_CSS = `
 }
 
 @media (pointer: coarse) {
-  [data-column-number] {
-    touch-action: auto;
-  }
-
   [data-utility-button]::after {
     content: '';
     position: absolute;
     inset: -0.45lh;
-  }
-
-  [data-code] {
-    --diffs-overflow-override: clip;
   }
 }
 `;
@@ -90,9 +71,9 @@ export const buildOptions = (
   enableLineSelection: true,
   /**
    * Selecting lines is the whole affordance, so under a mouse there is no plus
-   * in the gutter. A thumb has no drag to select with — that gesture is the
-   * diff scrolling — and the plus is the handle that replaces it: tap a line,
-   * then drag its handle to the other end of the range.
+   * in the gutter. A thumb has no drag across the code to select with — that
+   * gesture is the diff scrolling — and the plus is the handle that replaces
+   * it: tap a line, then drag its handle to the other end of the range.
    *
    * The library arms it only when there is a handler here, and the range the
    * drag ends on arrives through `onLineSelected` like any other — which
