@@ -60,7 +60,7 @@ export interface OptionsDeps {
 export const buildOptions = (
   state: AppState,
   { store, bus, metrics, renderAnnotation }: OptionsDeps,
-): CodeViewOptions<Card[]> => ({
+): CodeViewOptions<Card[], undefined> => ({
   theme: themeOptionFor(state.themePref),
   themeType: state.themePref === 'auto' ? 'system' : undefined,
   diffStyle: state.view,
