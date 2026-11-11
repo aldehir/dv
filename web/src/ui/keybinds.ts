@@ -18,6 +18,7 @@ export const KEYBINDS: readonly KeybindDescription[] = [
   { keys: 'n / p', label: 'Next / previous comment' },
   { keys: 'g', label: 'Toggle the comment inbox' },
   { keys: 'h', label: 'Toggle the hunk list' },
+  { keys: 's', label: 'Toggle one file at a time' },
   { keys: 'b', label: 'Toggle the file tree' },
   { keys: 'f', label: 'Toggle fullscreen' },
   { keys: '?', label: 'Toggle this help' },
@@ -79,6 +80,9 @@ export const createKeybinds = ({
         return true;
       case 'h':
         bus.emit('panel:toggle', 'hunks');
+        return true;
+      case 's':
+        store.set({ singleFile: !store.get().singleFile });
         return true;
       case 'b':
         bus.emit('sidebar:toggle');

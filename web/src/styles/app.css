@@ -8,7 +8,7 @@
   --dv-ui-font: 'Inter Variable', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --dv-code-font: 'Victor Mono Variable', ui-monospace, SFMono-Regular, monospace;
   --dv-ui-size: 13px;
-  --dv-rail-width: 0.85rem;
+  --dv-rail-width: 2.5rem;
 }
 
 body {
@@ -248,8 +248,8 @@ samp,
   padding: 0.35rem 0.3rem;
 }
 
-/* Change minimap and scrollbar in one: a tick per hunk in the whole diff,
-   hairlines at file boundaries, and a box you drag to scroll. */
+/* Change minimap and scrollbar in one: every added and removed line in the
+   whole diff, hairlines at file boundaries, and a box you drag to scroll. */
 .dv-rail {
   position: relative;
   width: var(--dv-rail-width);
@@ -268,10 +268,38 @@ samp,
 
 /* Ticks paint over the box but only the ticks themselves take the pointer, so
    the box underneath stays grabbable everywhere else. */
+.dv-rail__bands,
 .dv-rail__ticks {
   position: absolute;
   inset: 0;
   pointer-events: none;
+}
+
+/* Inset past the hunk strip on the left. A lone line still gets a couple of
+   pixels, or a one-line fix in a long diff would vanish. */
+.dv-rail__band {
+  position: absolute;
+  left: 4px;
+  right: 2px;
+  min-height: 2px;
+  opacity: 0.75;
+}
+
+.dv-rail__band--addition {
+  background: var(--dv-added);
+}
+
+.dv-rail__band--deletion {
+  background: var(--dv-removed);
+}
+
+/* Split diffs read removals on the left and additions on the right. */
+.dv-rail[data-view='split'] .dv-rail__band--deletion {
+  right: calc(50% + 1px);
+}
+
+.dv-rail[data-view='split'] .dv-rail__band--addition {
+  left: calc(50% + 1px);
 }
 
 .dv-rail__seam {
@@ -282,33 +310,24 @@ samp,
   background: var(--dv-border-strong);
 }
 
-/* A 9px hit target around a 3px mark, so the tick can stay hairline thin
-   without being impossible to click. */
+/* The whole hunk is the target, with a strip down its left edge the way an
+   editor gutter marks a change. Short hunks get padded out to stay clickable. */
 .dv-rail__tick {
   position: absolute;
   left: 0;
   right: 0;
-  height: 9px;
-  margin-top: -4px;
-  padding: 3px 2px;
+  min-height: 6px;
+  border-left: 3px solid currentColor;
   pointer-events: auto;
   cursor: pointer;
-}
-
-.dv-rail__tick::after {
-  content: '';
-  display: block;
-  height: 3px;
-  border-radius: 1px;
-  background: currentColor;
 }
 
 .dv-rail__tick:focus-visible {
   outline-offset: -1px;
 }
 
-.dv-rail__tick:hover::after {
-  background: var(--dv-fg);
+.dv-rail__tick:hover {
+  background: color-mix(in srgb, var(--dv-fg) 12%, transparent);
 }
 
 .dv-rail__tick--add {

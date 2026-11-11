@@ -40,6 +40,13 @@ export interface ItemChange {
  */
 export type RevealAlign = 'center' | 'nearest';
 
+/** A run of added or removed lines placed in the whole scroll, 0 to 1. */
+export interface ChangeBand {
+  kind: 'addition' | 'deletion';
+  offset: number;
+  extent: number;
+}
+
 /** One hunk placed in the whole scroll, for the rail to draw. */
 export interface HunkMark {
   fileId: string;
@@ -47,6 +54,10 @@ export interface HunkMark {
   index: number;
   /** Where the hunk sits in the total scroll height, 0 to 1. */
   offset: number;
+  /** How much of the total scroll height the hunk spans. */
+  extent: number;
+  /** The hunk's added and removed runs, line for line. */
+  changes: ChangeBand[];
   /** Where the hunk's file starts, so the rail can seam the boundary. */
   fileOffset: number;
   additions: number;
@@ -257,18 +268,39 @@ export const createViewer = ({
     if (pendingFile === id) revealFile(id);
   };
 
+  /** Whether the diff draws this file: every one, or only the selected one. */
+  const shown = (id: string): boolean => {
+    const { singleFile, selectedFile } = store.get();
+    return !singleFile || id === selectedFile;
+  };
+
   const append = (payload: FilePayload): void => {
     const annotations = annotationsFor(comments.threadsFor(payload.id), draftAt(payload.id));
     signatures.set(payload.id, annotationSignature(annotations));
     const next = itemFor(payload, annotations);
 
-    if (view.getItem(payload.id)) {
+    if (localIndex(payload.id) >= 0) {
       publishItem(next);
     } else {
       items.push(next);
-      view.addItems([next]);
+      if (shown(next.id)) view.addItems([next]);
     }
     flushPending(payload.id);
+  };
+
+  /**
+   * Hands the library the files it should draw now, from a clean slate rather
+   * than a reconcile: a list that changes in the middle is the reorder the
+   * library keeps stray elements for (see `add`), and appends are the path it
+   * is sure of.
+   */
+  const reshow = (): void => {
+    view.reset();
+    view.addItems(items.filter((item) => shown(item.id)));
+    const { selection, selectedFile } = store.get();
+    if (selection && view.getItem(selection.id)) view.setSelectedLines(selection);
+    if (selectedFile !== null) revealFile(selectedFile);
+    bus.emit('diff:reshown');
   };
 
   /**
@@ -289,7 +321,7 @@ export const createViewer = ({
       if (queued) {
         waiting.delete(id);
         append(queued);
-      } else if (!view.getItem(id) && !settled(id)) {
+      } else if (localIndex(id) < 0 && !settled(id)) {
         break;
       }
       cursor += 1;
@@ -309,7 +341,7 @@ export const createViewer = ({
    */
   const add = (payload: FilePayload): void => {
     const position = rank.get(payload.id);
-    if (view.getItem(payload.id) || position === undefined || position < cursor) {
+    if (localIndex(payload.id) >= 0 || position === undefined || position < cursor) {
       append(payload);
       return;
     }
@@ -412,13 +444,39 @@ export const createViewer = ({
       const band = Math.max((ends[index] ?? total) - top, 0);
       const lines = split ? item.fileDiff.splitLineCount : item.fileDiff.unifiedLineCount;
       if (lines <= 0) return;
+      const at = (row: number): number => (top + (band * row) / lines) / total;
+      const span = (rows: number): number => (band * rows) / lines / total;
       item.fileDiff.hunks.forEach((hunk, position) => {
         const start = split ? hunk.splitLineStart : hunk.unifiedLineStart;
+        const count = split ? hunk.splitLineCount : hunk.unifiedLineCount;
+
+        // Unified stacks a change's removals above its additions; split lays
+        // them side by side, so the block is only as tall as the longer side.
+        const changes: ChangeBand[] = [];
+        let row = start;
+        for (const content of hunk.hunkContent) {
+          if (content.type === 'context') {
+            row += content.lines;
+            continue;
+          }
+          const { deletions, additions } = content;
+          const added = split ? row : row + deletions;
+          if (deletions > 0) {
+            changes.push({ kind: 'deletion', offset: at(row), extent: span(deletions) });
+          }
+          if (additions > 0) {
+            changes.push({ kind: 'addition', offset: at(added), extent: span(additions) });
+          }
+          row += split ? Math.max(deletions, additions) : deletions + additions;
+        }
+
         marks.push({
           fileId: item.id,
           path: item.fileDiff.name,
           index: position,
-          offset: (top + (band * start) / lines) / total,
+          offset: at(start),
+          extent: span(count),
+          changes,
           fileOffset: top / total,
           additions: hunk.additionLines,
           deletions: hunk.deletionLines,
@@ -501,6 +559,14 @@ export const createViewer = ({
     bus.on('theme:changed', () => {
       applyOptions();
       view.onThemeChange();
+    }),
+  );
+  // A jump to lines in another file names the file before the lines, so the
+  // file is in the diff by the time the range is revealed.
+  disposer.add(store.subscribe('singleFile', reshow));
+  disposer.add(
+    store.subscribe('selectedFile', () => {
+      if (store.get().singleFile) reshow();
     }),
   );
   disposer.add(store.subscribe('view', applyOptions));

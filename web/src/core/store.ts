@@ -40,6 +40,8 @@ export interface AppState {
   flavor: Flavor;
   view: ViewMode;
   wrap: boolean;
+  /** Only the selected file in the diff, rather than every file one after another. */
+  singleFile: boolean;
   scrollTop: number;
   selectedFile: string | null;
   selection: LineSelection | null;
@@ -69,6 +71,7 @@ export const createInitialState = (): AppState => ({
   flavor: 'mocha',
   view: 'split',
   wrap: false,
+  singleFile: false,
   scrollTop: 0,
   selectedFile: null,
   selection: null,

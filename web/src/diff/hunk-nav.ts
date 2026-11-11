@@ -38,6 +38,7 @@ export const createHunkNav = ({ bus, viewer }: HunkNavDeps): Component<void> => 
   disposer.add(on(next, 'click', () => bus.emit('hunk:step', { delta: 1 })));
   disposer.add(bus.on('file:payload', update));
   disposer.add(bus.on('manifest:ready', update));
+  disposer.add(bus.on('diff:reshown', update));
   disposer.add(on(window, 'resize', update));
 
   update();

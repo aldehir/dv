@@ -78,6 +78,15 @@ describe('createKeybinds', () => {
     keybinds.destroy();
   });
 
+  it('flips one file at a time on s', () => {
+    const { store, keybinds } = setup();
+    press('s');
+    expect(store.get().singleFile).toBe(true);
+    press('s');
+    expect(store.get().singleFile).toBe(false);
+    keybinds.destroy();
+  });
+
   it('moves into the comment box only when a selection exists', () => {
     const { store, seen, keybinds } = setup();
     press('c');

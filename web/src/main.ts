@@ -23,6 +23,7 @@ import { createFileTree } from './ui/file-tree';
 import { createFullscreen } from './ui/fullscreen';
 import { createKeybinds } from './ui/keybinds';
 import { createPointerKind } from './ui/pointer';
+import { createPrefs } from './ui/prefs';
 import { createShell } from './ui/shell';
 import { createStatusBar } from './ui/status-bar';
 import { createToolbar } from './ui/toolbar';
@@ -34,9 +35,12 @@ const deps = { store, bus };
 const loader = createLoader({ ...deps, client });
 const comments = createCommentsStore({ ...deps, client });
 
-// Ahead of the shell and the viewer, so a narrow window draws unified with the
-// tree away rather than laying out twice, and the diff is built for the pointer
-// it is about to be read with.
+// Ahead of the shell and the viewer, so the diff is first drawn the way it was
+// last left, a narrow window draws unified with the tree away rather than
+// laying out twice, and the diff is built for the pointer it is about to be
+// read with. The settings go first, so the narrow layout sets aside the
+// remembered view rather than the built-in one.
+createPrefs({ store });
 createCompactLayout({ store });
 createPointerKind({ store });
 

@@ -4,7 +4,7 @@ import type { Component, Unsubscribe } from '../core/component';
 import { createDisposer } from '../core/component';
 import { clear, el, frag, on } from '../core/dom';
 import type { AppStore } from '../core/store';
-import type { HunkMark, Viewer } from './viewer';
+import type { ChangeBand, HunkMark, Viewer } from './viewer';
 
 export interface RailDeps {
   store: AppStore;
@@ -56,11 +56,13 @@ export const createRail = ({
   let dragged = false;
   let gesture: Unsubscribe | null = null;
 
+  const bands = el('div', { class: 'dv-rail__bands' });
   const ticks = el('div', { class: 'dv-rail__ticks' });
   const box = el('div', { class: 'dv-rail__view' });
-  // The box sits under the ticks, so the hunks it covers stay both readable
-  // and clickable — those are the ones the reader is closest to.
-  const root = el('div', { class: 'dv-rail', hidden: true }, box, ticks);
+  // The box washes over the bands rather than hiding them, and sits under the
+  // ticks, so the hunks it covers stay both readable and clickable — those are
+  // the ones the reader is closest to.
+  const root = el('div', { class: 'dv-rail', hidden: true }, bands, box, ticks);
 
   const seam = (mark: HunkMark): HTMLElement => {
     const node = el('div', { class: 'dv-rail__seam' });
@@ -76,6 +78,14 @@ export const createRail = ({
       data: { hunk: String(position) },
     });
     node.style.top = percent(mark.offset);
+    node.style.height = percent(mark.extent);
+    return node;
+  };
+
+  const band = (change: ChangeBand): HTMLElement => {
+    const node = el('div', { class: `dv-rail__band dv-rail__band--${change.kind}` });
+    node.style.top = percent(change.offset);
+    node.style.height = percent(change.extent);
     return node;
   };
 
@@ -90,6 +100,11 @@ export const createRail = ({
     // A hairline of ticks is no target for a thumb, and a narrow window has
     // better uses for the width: the arrows and the hunk list stand in for it.
     root.hidden = marks.length === 0 || store.get().compact;
+    // Split puts removals and additions side by side, and so does the rail.
+    root.dataset.view = store.get().view;
+
+    clear(bands);
+    bands.appendChild(frag(...marks.flatMap((mark) => mark.changes.map(band))));
 
     clear(ticks);
     // The first file needs no seam: the top of the rail already is its edge.
@@ -189,6 +204,7 @@ export const createRail = ({
   );
   disposer.add(bus.on('file:payload', render));
   disposer.add(bus.on('manifest:ready', render));
+  disposer.add(bus.on('diff:reshown', render));
   disposer.add(store.subscribe('view', render));
   disposer.add(store.subscribe('wrap', render));
   disposer.add(store.subscribe('compact', render));

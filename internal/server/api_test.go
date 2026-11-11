@@ -62,13 +62,19 @@ func TestFileGolden(t *testing.T) {
 	}
 }
 
-func TestSessionOmitsThemeWithoutFlag(t *testing.T) {
+func TestSessionOmitsDefaultsWithoutFlags(t *testing.T) {
 	h := newHarness(t, seedRepo(t), nil)
 	var session model.Session
 	h.decode(h.get("/api/session"), &session)
 
 	if session.Defaults.Theme != "" {
 		t.Errorf("defaults.theme = %q, want an empty string when no --theme was passed", session.Defaults.Theme)
+	}
+	if session.Defaults.View != "" {
+		t.Errorf("defaults.view = %q, want an empty string when no --view was passed", session.Defaults.View)
+	}
+	if session.Defaults.Wrap != nil {
+		t.Errorf("defaults.wrap = %v, want null when no --wrap was passed", *session.Defaults.Wrap)
 	}
 	if session.Spec.Kind != model.SpecTwoDot {
 		t.Errorf("spec.kind = %q, want two-dot", session.Spec.Kind)
@@ -81,9 +87,10 @@ func TestSessionOmitsThemeWithoutFlag(t *testing.T) {
 	}
 }
 
-func TestSessionCarriesExplicitTheme(t *testing.T) {
+func TestSessionCarriesExplicitDefaults(t *testing.T) {
+	wrap := true
 	h := newHarness(t, seedRepo(t), func(o *harnessOptions) {
-		o.defaults = model.Defaults{Theme: "mocha", View: "unified", Wrap: true}
+		o.defaults = model.Defaults{Theme: "mocha", View: "unified", Wrap: &wrap}
 		o.comments = false
 	})
 	var session model.Session
@@ -91,6 +98,12 @@ func TestSessionCarriesExplicitTheme(t *testing.T) {
 
 	if session.Defaults.Theme != "mocha" {
 		t.Errorf("defaults.theme = %q, want mocha", session.Defaults.Theme)
+	}
+	if session.Defaults.View != "unified" {
+		t.Errorf("defaults.view = %q, want unified", session.Defaults.View)
+	}
+	if session.Defaults.Wrap == nil || !*session.Defaults.Wrap {
+		t.Error("defaults.wrap is not true")
 	}
 	if session.Comments {
 		t.Error("comments = true, want false when the store is disabled")

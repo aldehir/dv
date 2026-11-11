@@ -111,12 +111,9 @@ export const createLoader = ({ client, store, bus }: LoaderDeps): Loader => {
       void client
         .session()
         .then((session) => {
-          store.set({
-            session,
-            commentsEnabled: session.comments,
-            view: session.defaults.view,
-            wrap: session.defaults.wrap,
-          });
+          // The view and wrap defaults are `ui/prefs.ts`'s to apply, against
+          // what it remembered.
+          store.set({ session, commentsEnabled: session.comments });
         })
         .catch((error: unknown) => {
           store.set({ notice: describe(error) });

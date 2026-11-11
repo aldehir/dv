@@ -194,6 +194,7 @@ export const createHunkList = ({
   );
   disposer.add(bus.on('file:payload', render));
   disposer.add(bus.on('manifest:ready', render));
+  disposer.add(bus.on('diff:reshown', render));
   disposer.add(store.subscribe('view', render));
   disposer.add(store.subscribe('wrap', render));
   disposer.add(store.subscribe('scrollTop', syncCurrent));

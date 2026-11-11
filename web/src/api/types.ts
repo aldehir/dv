@@ -18,10 +18,11 @@ export type Flavor = 'latte' | 'frappe' | 'macchiato' | 'mocha';
 export type ThemePref = Flavor | 'auto';
 export type ViewMode = 'split' | 'unified';
 
+/** Only what was asked for by flag or config; empty or null leaves the browser's own. */
 export interface Defaults {
   theme: ThemePref | '';
-  view: ViewMode;
-  wrap: boolean;
+  view: ViewMode | '';
+  wrap: boolean | null;
 }
 
 export interface Session {

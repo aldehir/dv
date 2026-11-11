@@ -16,6 +16,8 @@ const mark = (
   path: `src/${fileId}.ts`,
   index,
   offset,
+  extent: 0.05,
+  changes: [],
   fileOffset: offset,
   additions: 4,
   deletions: 1,

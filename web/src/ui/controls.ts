@@ -10,6 +10,7 @@ import { icon } from './icons';
 export interface ControlsProps {
   view: ViewMode;
   wrap: boolean;
+  singleFile: boolean;
   themePref: ThemePref;
 }
 
@@ -21,6 +22,7 @@ export interface ControlsDeps {
 export const controlsProps = (state: AppState): ControlsProps => ({
   view: state.view,
   wrap: state.wrap,
+  singleFile: state.singleFile,
   themePref: state.themePref,
 });
 
@@ -71,6 +73,7 @@ export const createControls = ({ store, bus }: ControlsDeps): Component<Controls
     icon('unified'),
   );
   const wrap = toggle('wrap', 'Wrap long lines', 'Wrap long lines');
+  const single = toggle('single', 'Show one file at a time', 'One file at a time (s)');
   const themeSelect = el(
     'select',
     { class: 'dv-select', ariaLabel: 'Catppuccin flavor', title: 'Catppuccin flavor' },
@@ -84,6 +87,7 @@ export const createControls = ({ store, bus }: ControlsDeps): Component<Controls
     { class: 'dv-controls' },
     row('View', el('div', { class: 'dv-seg' }, splitButton, unifiedButton)),
     row('Wrap', wrap.button),
+    row('Files', single.button),
     row('Theme', themeSelect),
   );
 
@@ -92,12 +96,17 @@ export const createControls = ({ store, bus }: ControlsDeps): Component<Controls
     unifiedButton.setAttribute('aria-pressed', String(props.view === 'unified'));
     wrap.button.setAttribute('aria-pressed', String(props.wrap));
     wrap.state.textContent = props.wrap ? 'on' : 'off';
+    single.button.setAttribute('aria-pressed', String(props.singleFile));
+    single.state.textContent = props.singleFile ? 'one' : 'all';
     themeSelect.value = props.themePref;
   };
 
   disposer.add(on(splitButton, 'click', () => store.set({ view: 'split' })));
   disposer.add(on(unifiedButton, 'click', () => store.set({ view: 'unified' })));
   disposer.add(on(wrap.button, 'click', () => store.set({ wrap: !store.get().wrap })));
+  disposer.add(
+    on(single.button, 'click', () => store.set({ singleFile: !store.get().singleFile })),
+  );
   disposer.add(
     on(themeSelect, 'change', () => {
       bus.emit('theme:set', themeSelect.value as ThemePref);

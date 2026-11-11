@@ -161,6 +161,23 @@ Things to know before changing it:
   rebuild keeps its render range by position, so a file drawn near the top and
   then pushed down by an insertion above it kept its element, and that stray
   element skewed the sticky window every scroll ran through.
+- One file at a time (`singleFile`, `s`) keeps every payload in the viewer's
+  own list but hands `CodeView` only the selected one. Changing the selection
+  or the flag resets the view and appends afresh rather than reconciling, for
+  the same reason. The rail and the hunk list then cover just that file, and
+  `stepHunk` running off its end swaps the next one in.
+
+## Remembered settings
+
+`ui/prefs.ts` saves View, Wrap and Files to `localStorage` (`dv:view`,
+`dv:wrap`, `dv:single-file`) and restores them before the compact layout and
+the viewer are built, so the first draw is already the one the reader left. A
+view a narrow window forced is not saved over the reader's own.
+
+The session's `defaults` carry only what was asked for by flag or
+`config.toml` — `view: ""` and `wrap: null` otherwise, as `theme: ""` always
+has — and the loader applies just those, so `--view` or `--wrap` outranks the
+remembered setting for that run without overwriting it.
 
 ## Comments in the UI
 
@@ -210,6 +227,7 @@ add a binding there and the help updates itself.
 | `n` / `p` | next / previous comment |
 | `g` | toggle the comment inbox |
 | `h` | toggle the hunk list |
+| `s` | toggle one file at a time |
 | `b` | toggle the file tree |
 | `f` | toggle fullscreen |
 | `?` | help |

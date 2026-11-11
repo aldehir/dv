@@ -231,6 +231,49 @@ describe('createViewer', () => {
     harness.viewer.destroy();
   });
 
+  it('holds only the selected file while showing one at a time', () => {
+    const harness = bench();
+    harness.store.set({ singleFile: true, selectedFile: 'f2' });
+    harness.bus.emit('manifest:ready', manifest());
+    harness.bus.emit('file:payload', payload('f1', 'src/f1.ts'));
+    harness.bus.emit('file:payload', payload('f2', 'src/f2.ts'));
+    harness.bus.emit('file:payload', payload('f3', 'src/f3.ts'));
+    expect(ids(harness.view())).toEqual(['f2']);
+    const reshown = vi.fn();
+    harness.bus.on('diff:reshown', reshown);
+
+    harness.store.set({ selectedFile: 'f3' });
+    expect(ids(harness.view())).toEqual(['f3']);
+    expect(reshown).toHaveBeenCalledTimes(1);
+
+    harness.store.set({ singleFile: false });
+    expect(order(harness.view())).toEqual(['f1', 'f2', 'f3']);
+    harness.viewer.destroy();
+  });
+
+  it('carries the hunk walk into the next file while showing one at a time', () => {
+    const harness = bench();
+    harness.store.set({ singleFile: true, selectedFile: 'f1' });
+    harness.bus.emit('manifest:ready', manifest());
+    harness.bus.emit('file:payload', payload('f1', 'src/f1.ts'));
+    harness.bus.emit('file:payload', payload('f2', 'src/f2.ts'));
+    const scrollTo = vi.spyOn(harness.view(), 'scrollTo');
+
+    harness.bus.emit('hunk:step', { delta: 1 });
+    harness.bus.emit('hunk:step', { delta: 1 });
+
+    expect(harness.store.get().selectedFile).toBe('f2');
+    expect(ids(harness.view())).toEqual(['f2']);
+    expect(scrollTo).toHaveBeenLastCalledWith({
+      type: 'line',
+      id: 'f2',
+      lineNumber: 1,
+      side: 'additions',
+      align: 'start',
+    });
+    harness.viewer.destroy();
+  });
+
   it('takes a payload as it comes when no manifest names an order', () => {
     const harness = bench();
     harness.bus.emit('file:payload', payload('f2', 'src/f2.ts'));
@@ -498,6 +541,11 @@ describe('createViewer', () => {
         path: 'src/f1.ts',
         index: 0,
         offset: 0,
+        extent: 0.4,
+        changes: [
+          { kind: 'deletion', offset: expect.closeTo(0.4 / 3), extent: expect.closeTo(0.4 / 3) },
+          { kind: 'addition', offset: expect.closeTo(0.4 / 3), extent: expect.closeTo(0.4 / 3) },
+        ],
         fileOffset: 0,
         additions: 1,
         deletions: 1,
@@ -508,11 +556,36 @@ describe('createViewer', () => {
         path: 'src/f2.ts',
         index: 0,
         offset: 0.4,
+        extent: 0.6,
+        changes: [
+          { kind: 'deletion', offset: expect.closeTo(0.6), extent: expect.closeTo(0.2) },
+          { kind: 'addition', offset: expect.closeTo(0.6), extent: expect.closeTo(0.2) },
+        ],
         fileOffset: 0.4,
         additions: 1,
         deletions: 1,
         context: '',
       },
+    ]);
+    harness.viewer.destroy();
+  });
+
+  it('stacks a change in unified and sets it side by side in split', () => {
+    const harness = bench();
+    harness.bus.emit('file:payload', payload('f1', 'src/f1.ts'));
+    measured(harness, { f1: 0 }, 400);
+
+    // Split: a context row, the change in one row, a context row.
+    expect(harness.viewer.hunks()[0]?.changes).toEqual([
+      { kind: 'deletion', offset: expect.closeTo(1 / 3), extent: expect.closeTo(1 / 3) },
+      { kind: 'addition', offset: expect.closeTo(1 / 3), extent: expect.closeTo(1 / 3) },
+    ]);
+
+    // Unified: the removal takes its own row above the addition.
+    harness.store.set({ view: 'unified' });
+    expect(harness.viewer.hunks()[0]?.changes).toEqual([
+      { kind: 'deletion', offset: 0.25, extent: 0.25 },
+      { kind: 'addition', offset: 0.5, extent: 0.25 },
     ]);
     harness.viewer.destroy();
   });

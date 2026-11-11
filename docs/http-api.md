@@ -26,7 +26,7 @@ before routing.
 | Method | Path | Returns |
 |---|---|---|
 | `GET` | `/healthz` | `{status, version}` — no token needed |
-| `GET` | `/api/session` | repo root, head, spec, CLI defaults, whether comments are on |
+| `GET` | `/api/session` | repo root, head, spec, defaults asked for by flag or config (`theme: ""`, `view: ""`, `wrap: null` otherwise), whether comments are on |
 | `GET` | `/api/manifest` | `{files: FileEntry[], totals}` |
 | `GET` | `/api/file/{id}` | `FilePayload` — patch plus full side contents |
 | `GET` | `/api/stream` | SSE: the manifest and every file |

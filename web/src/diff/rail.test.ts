@@ -16,6 +16,8 @@ const mark = (
   path: `src/${fileId}.ts`,
   index,
   offset,
+  extent: 0.05,
+  changes: [],
   fileOffset: offset,
   additions: 4,
   deletions: 1,
@@ -89,6 +91,7 @@ const setup = () => {
       for (const listener of [...notify]) listener();
     },
     ticks: () => [...rail.el.querySelectorAll<HTMLElement>('.dv-rail__tick')],
+    bands: () => [...rail.el.querySelectorAll<HTMLElement>('.dv-rail__band')],
     seams: () => [...rail.el.querySelectorAll<HTMLElement>('.dv-rail__seam')],
     box: () => rail.el.querySelector<HTMLElement>('.dv-rail__view'),
   };
@@ -123,6 +126,38 @@ describe('createRail', () => {
       'dv-rail__tick dv-rail__tick--add',
       'dv-rail__tick dv-rail__tick--del',
     ]);
+    it0.rail.destroy();
+  });
+
+  it('spans each hunk tick over the lines the hunk covers', () => {
+    const it0 = setup();
+    it0.draw([mark('f1', 0, 0.1, { extent: 0.3 })]);
+
+    expect(it0.ticks()[0]?.style.height).toBe('30%');
+    it0.rail.destroy();
+  });
+
+  it('draws a band per added and removed run, sided by the view', () => {
+    const it0 = setup();
+    it0.draw([
+      mark('f1', 0, 0.1, {
+        changes: [
+          { kind: 'deletion', offset: 0.1, extent: 0.02 },
+          { kind: 'addition', offset: 0.12, extent: 0.04 },
+        ],
+      }),
+    ]);
+
+    expect(
+      it0.bands().map((band) => [band.className, band.style.top, band.style.height]),
+    ).toEqual([
+      ['dv-rail__band dv-rail__band--deletion', '10%', '2%'],
+      ['dv-rail__band dv-rail__band--addition', '12%', '4%'],
+    ]);
+    expect(it0.rail.el.dataset.view).toBe('split');
+
+    it0.store.set({ view: 'unified' });
+    expect(it0.rail.el.dataset.view).toBe('unified');
     it0.rail.destroy();
   });
 
@@ -274,6 +309,10 @@ describe('createRail', () => {
     it0.stage([mark('f1', 0, 0)]);
     it0.store.set({ wrap: true });
     expect(it0.ticks()).toHaveLength(1);
+
+    it0.stage([mark('f1', 0, 0), mark('f1', 1, 0.5)]);
+    it0.bus.emit('diff:reshown');
+    expect(it0.ticks()).toHaveLength(2);
 
     it0.stage([]);
     it0.touchComments();

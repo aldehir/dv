@@ -19,10 +19,12 @@ type Spec struct {
 	Argv      []string `json:"argv"`
 }
 
+// Defaults carries only what the user asked for, by flag or config file; the
+// zero values (an empty string, a null wrap) leave the browser's own choice.
 type Defaults struct {
 	Theme string `json:"theme"`
 	View  string `json:"view"`
-	Wrap  bool   `json:"wrap"`
+	Wrap  *bool  `json:"wrap"`
 }
 
 type Session struct {

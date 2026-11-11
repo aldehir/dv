@@ -21,6 +21,8 @@ export interface BusEvents {
   'file:payload': FilePayload;
   'file:selected': FileSelected;
   'file:step': StepIntent;
+  /** The diff swapped which files it draws, so everything placed in it moved. */
+  'diff:reshown': void;
   'hunk:step': StepIntent;
   'filter:focus': void;
   'theme:set': ThemePref;

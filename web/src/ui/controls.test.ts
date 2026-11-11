@@ -22,7 +22,7 @@ describe('createControls', () => {
     const labels = [...controls.el.querySelectorAll('.dv-control__label')].map(
       (label) => label.textContent,
     );
-    expect(labels).toEqual(['View', 'Wrap', 'Theme']);
+    expect(labels).toEqual(['View', 'Wrap', 'Files', 'Theme']);
     controls.destroy();
   });
 
@@ -41,6 +41,18 @@ describe('createControls', () => {
     expect(store.get().wrap).toBe(true);
     expect(wrap.getAttribute('aria-pressed')).toBe('true');
     expect(wrap.textContent).toBe('on');
+    controls.destroy();
+  });
+
+  it('reflects and drives the one-file-at-a-time flag', () => {
+    const { store, controls } = setup();
+    const single = labelled(controls, 'Show one file at a time');
+    expect(single.textContent).toBe('all');
+
+    single.click();
+    expect(store.get().singleFile).toBe(true);
+    expect(single.getAttribute('aria-pressed')).toBe('true');
+    expect(single.textContent).toBe('one');
     controls.destroy();
   });
 

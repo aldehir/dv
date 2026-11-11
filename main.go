@@ -216,23 +216,29 @@ func short(rev string) string {
 	return rev
 }
 
+// defaults hands the browser only the settings the user asked for. The rest
+// it remembers itself, and the built-in default would trample that every load.
 func defaults(cfg, base config.Config, argv []string) model.Defaults {
-	d := model.Defaults{View: cfg.View, Wrap: cfg.Wrap}
-	if themeRequested(base, argv) {
+	var d model.Defaults
+	if base.Theme != config.DefaultTheme || flagGiven(argv, "--theme") {
 		d.Theme = cfg.Theme
+	}
+	if base.View != config.DefaultView || flagGiven(argv, "--view") {
+		d.View = cfg.View
+	}
+	if base.Wrap || flagGiven(argv, "--wrap") {
+		wrap := cfg.Wrap
+		d.Wrap = &wrap
 	}
 	return d
 }
 
-func themeRequested(base config.Config, argv []string) bool {
-	if base.Theme != config.DefaultTheme {
-		return true
-	}
+func flagGiven(argv []string, name string) bool {
 	for _, arg := range argv {
 		if arg == "--" {
 			return false
 		}
-		if arg == "--theme" || strings.HasPrefix(arg, "--theme=") {
+		if arg == name || strings.HasPrefix(arg, name+"=") {
 			return true
 		}
 	}
